@@ -100,6 +100,16 @@ body {
   padding: 30px 32px 60px;
 }
 
+.tab-panel {
+  display: none;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.tab-panel.active {
+  display: flex;
+}
+
 .section {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -267,6 +277,40 @@ body {
   font-size: 13px;
 }
 
+.avatar-swatches {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+}
+
+.swatch.water {
+  background: #6cc2c2;
+}
+
+.swatch.air {
+  background: #8fa6d6;
+}
+
+.swatch.fire {
+  background: #b34a3c;
+}
+
+.swatch.earth {
+  background: #567d5a;
+}
+
+.avatar-state {
+  box-shadow: 0 0 30px rgba(240, 240, 255, 0.4);
+  border-color: rgba(240, 240, 255, 0.6);
+}
+
 .skill-tree-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -293,6 +337,28 @@ body {
   gap: 6px;
   font-size: 12px;
   color: var(--muted);
+}
+
+.skill-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.skill-list button {
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--ink);
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.skill-list button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .skill-tree .highlight {
@@ -403,6 +469,12 @@ body {
   border-color: var(--accent-2);
 }
 
+.calendar-day.done {
+  background: rgba(86, 125, 90, 0.2);
+  border-color: var(--accent-4);
+  color: var(--ink);
+}
+
 .builder-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -464,6 +536,132 @@ body {
   border-radius: 10px;
 }
 
+.gym-grid,
+.pantry-grid,
+.game-grid,
+.mastery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.panel-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel-column h3 {
+  font-family: "IM Fell English SC", serif;
+  font-size: 18px;
+}
+
+.form-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.form-grid input,
+.form-grid select {
+  background: #101416;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  color: var(--ink);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 80px auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.data-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.data-list li {
+  background: rgba(12, 15, 17, 0.7);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.data-list button {
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--ink);
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.active-list ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.active-list li {
+  background: rgba(12, 15, 17, 0.7);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: var(--muted);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.active-list input {
+  width: 70px;
+  background: #101416;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 6px;
+  color: var(--ink);
+  text-align: center;
+}
+
+.stat-list {
+  display: grid;
+  gap: 10px;
+}
+
+.stat-card {
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 12px;
+  background: rgba(12, 15, 17, 0.6);
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+}
+
+.nutrition-grid.compact {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.avatar-card.compact {
+  background: #141a1c;
+}
+
+.mastery-grid {
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+
 @media (max-width: 980px) {
   .hero-row {
     grid-template-columns: 1fr;
@@ -477,5 +675,13 @@ body {
   .top-bar {
     flex-direction: column;
     gap: 12px;
+  }
+
+  .mastery-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
   }
 }
