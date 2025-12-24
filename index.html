@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Element | Health + Avatar</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Inter:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <header class="top-bar">
+      <div class="brand">
+        <span class="brand-mark">◎</span>
+        <div>
+          <p class="brand-title">Element</p>
+          <p class="brand-subtitle">Balance • Discipline • Growth</p>
+        </div>
+      </div>
+      <nav class="tabs">
+        <button class="tab active">Home</button>
+        <button class="tab">Gym</button>
+        <button class="tab">Pantry</button>
+      </nav>
+      <div class="token-pill">
+        <span>Token Vault</span>
+        <strong id="tokenCount">120</strong>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="section daily-goals">
+        <div class="section-heading">
+          <h2>Daily Goals</h2>
+          <button class="ghost-button">Add Goal</button>
+        </div>
+        <div class="goal-grid" id="goalGrid"></div>
+      </section>
+
+      <section class="section hero-row">
+        <div class="avatar-card">
+          <div class="avatar-header">
+            <h2>Avatar Core</h2>
+            <p>Level 7 • 3/5 Elements Awakened</p>
+          </div>
+          <div class="avatar-body">
+            <div class="avatar-frame">
+              <div class="avatar-ring">
+                <div class="avatar-figure">
+                  <div class="avatar-halo"></div>
+                  <div class="avatar-face"></div>
+                  <div class="avatar-robe"></div>
+                </div>
+              </div>
+              <p class="avatar-label">Customize: hair, robe, aura, palette</p>
+            </div>
+            <div class="skill-tree-grid">
+              <div class="skill-tree air">
+                <h3>Air</h3>
+                <ul>
+                  <li>Air Blast I → III</li>
+                  <li>Whirling Step (stamina +)</li>
+                  <li>Tornado Surge (basic dmg +)</li>
+                  <li>Air Scooter (mobility)</li>
+                  <li>Vacuum Grip (crowd control)</li>
+                  <li class="highlight">Skyborn Flight (special)</li>
+                </ul>
+              </div>
+              <div class="skill-tree water">
+                <h3>Water</h3>
+                <ul>
+                  <li>Water Lash I → III</li>
+                  <li>Ice Shards (basic dmg +)</li>
+                  <li>Flowing Guard (defense +)</li>
+                  <li>Wave Crash (stagger)</li>
+                  <li>Mist Veil (evasion)</li>
+                  <li class="highlight">Healing Tide (special)</li>
+                </ul>
+              </div>
+              <div class="skill-tree earth">
+                <h3>Earth</h3>
+                <ul>
+                  <li>Stone Shot I → III</li>
+                  <li>Quake Pulse (stun)</li>
+                  <li>Granite Skin (health +)</li>
+                  <li>Seismic Sense (crit +)</li>
+                  <li>Ridge Wall (control)</li>
+                  <li class="highlight">Metal Armor (special)</li>
+                </ul>
+              </div>
+              <div class="skill-tree fire">
+                <h3>Fire</h3>
+                <ul>
+                  <li>Fire Flick I → III</li>
+                  <li>Heat Spiral (basic dmg +)</li>
+                  <li>Combust Dash (mobility)</li>
+                  <li>Flame Jet (burn)</li>
+                  <li>Inferno Guard (defense +)</li>
+                  <li class="highlight">Lightning Bolts (special)</li>
+                </ul>
+              </div>
+              <div class="skill-tree balance">
+                <h3>Balance</h3>
+                <ul>
+                  <li>Stamina +10</li>
+                  <li>Health +15</li>
+                  <li>Token Gain +5%</li>
+                  <li>Cooldown -5%</li>
+                  <li>Focus Surge (crit +)</li>
+                  <li class="highlight">Avatar State (ultimate)</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="workout-card">
+          <div class="section-heading">
+            <h2>Today’s Workout</h2>
+            <button class="ghost-button">Edit</button>
+          </div>
+          <div class="workout-meta">
+            <p>Push Day 1 • Monday</p>
+            <span>Earn 30 Tokens</span>
+          </div>
+          <ul class="workout-list">
+            <li>
+              <span>Bench Press</span>
+              <small>4 sets × 8 reps</small>
+              <input type="checkbox" />
+            </li>
+            <li>
+              <span>Incline Dumbbell Press</span>
+              <small>3 sets × 10 reps</small>
+              <input type="checkbox" />
+            </li>
+            <li>
+              <span>Tricep Dips</span>
+              <small>3 sets × 12 reps</small>
+              <input type="checkbox" />
+            </li>
+            <li>
+              <span>Plank</span>
+              <small>3 rounds × 45 sec</small>
+              <input type="checkbox" />
+            </li>
+          </ul>
+          <div class="workout-actions">
+            <button class="primary-button">Complete Workout</button>
+            <button class="ghost-button">Swap Exercise</button>
+          </div>
+        </aside>
+      </section>
+
+      <section class="section nutrition">
+        <div class="section-heading">
+          <h2>Nutrition</h2>
+          <div class="feed-actions">
+            <select id="mealSelect">
+              <option value="smoothie">Protein Smoothie</option>
+              <option value="chickenBowl">Chicken Rice Bowl</option>
+              <option value="milk">8oz Milk</option>
+            </select>
+            <button class="primary-button" id="feedButton">Feed</button>
+          </div>
+        </div>
+        <div class="nutrition-grid">
+          <div class="macro-card">
+            <h3>Calories</h3>
+            <div class="macro-bar">
+              <div class="macro-progress" id="calorieProgress"></div>
+            </div>
+            <p class="macro-label" id="calorieLabel">0 / 2400 kcal</p>
+          </div>
+          <div class="macro-card">
+            <h3>Protein</h3>
+            <div class="macro-bar">
+              <div class="macro-progress" id="proteinProgress"></div>
+            </div>
+            <p class="macro-label" id="proteinLabel">0 / 180g</p>
+          </div>
+          <div class="macro-card">
+            <h3>Carbs</h3>
+            <div class="macro-bar">
+              <div class="macro-progress" id="carbProgress"></div>
+            </div>
+            <p class="macro-label" id="carbLabel">0 / 220g</p>
+          </div>
+          <div class="macro-card">
+            <h3>Fat</h3>
+            <div class="macro-bar">
+              <div class="macro-progress" id="fatProgress"></div>
+            </div>
+            <p class="macro-label" id="fatLabel">0 / 70g</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section calendar">
+        <div class="section-heading">
+          <h2>Workout Calendar</h2>
+          <button class="ghost-button">Mass Schedule</button>
+        </div>
+        <div class="calendar-grid">
+          <div class="calendar-day active">
+            <span>Mon</span>
+            <strong>Push Day 1</strong>
+            <small>Week 1</small>
+          </div>
+          <div class="calendar-day">
+            <span>Tue</span>
+            <strong>Chest Iso</strong>
+            <small>Week 1</small>
+          </div>
+          <div class="calendar-day">
+            <span>Wed</span>
+            <strong>Rest + Mobility</strong>
+            <small>Week 1</small>
+          </div>
+          <div class="calendar-day planned">
+            <span>Thu</span>
+            <strong>Pull Day</strong>
+            <small>Week 1</small>
+          </div>
+          <div class="calendar-day">
+            <span>Fri</span>
+            <strong>Legs</strong>
+            <small>Week 1</small>
+          </div>
+          <div class="calendar-day planned">
+            <span>Sat</span>
+            <strong>Conditioning</strong>
+            <small>Week 1</small>
+          </div>
+          <div class="calendar-day">
+            <span>Sun</span>
+            <strong>Recovery</strong>
+            <small>Week 1</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="section builder-row">
+        <div class="builder-card">
+          <div class="section-heading">
+            <h2>Workout Builder</h2>
+            <button class="ghost-button">New Workout</button>
+          </div>
+          <p class="muted">
+            Build workouts from your exercise library. Drag exercises into a workout
+            template, set sets/reps or time, and schedule them on the calendar.
+          </p>
+          <div class="builder-columns">
+            <div>
+              <h4>Exercise Library</h4>
+              <ul>
+                <li>Bench Press</li>
+                <li>Incline Press</li>
+                <li>Ring Push-ups</li>
+                <li>Plank Holds</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Workout Template</h4>
+              <ul>
+                <li>Bench Press • 4 × 8</li>
+                <li>Incline Press • 3 × 10</li>
+                <li>Plank Holds • 3 × 45s</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div class="builder-card">
+          <div class="section-heading">
+            <h2>Nutrition Builder</h2>
+            <button class="ghost-button">New Recipe</button>
+          </div>
+          <p class="muted">
+            Add foods with macros, then combine them into recipes. Recipes auto-calculate totals
+            and can be logged with one tap.
+          </p>
+          <div class="builder-columns">
+            <div>
+              <h4>Food Library</h4>
+              <ul>
+                <li>Milk (8oz) • 12C / 10P / 3F</li>
+                <li>Banana • 27C / 1P / 0F</li>
+                <li>Protein Powder • 2C / 25P / 1F</li>
+                <li>Peanut Butter • 6C / 7P / 14F</li>
+              </ul>
+            </div>
+            <div>
+              <h4>Recipe: Smoothie</h4>
+              <ul>
+                <li>Milk (8oz)</li>
+                <li>Banana</li>
+                <li>Protein Powder</li>
+                <li>Peanut Butter</li>
+              </ul>
+              <p class="muted">Total: 47C / 43P / 18F</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section weight-card">
+        <div class="section-heading">
+          <h2>Weight Journey</h2>
+          <button class="ghost-button">Update</button>
+        </div>
+        <div class="weight-grid">
+          <div>
+            <p class="muted">Current</p>
+            <h3>182 lbs</h3>
+          </div>
+          <div>
+            <p class="muted">Goal</p>
+            <h3>175 lbs</h3>
+          </div>
+          <div>
+            <p class="muted">Check-in</p>
+            <h3>Weekly • Friday</h3>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
