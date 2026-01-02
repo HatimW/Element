@@ -92,6 +92,7 @@
             <h2>Nutrition</h2>
             <div class="feed-actions">
               <select data-meal-select></select>
+              <input type="number" min="0" step="1" placeholder="Meal tokens (optional)" data-meal-token />
               <button class="primary-button" data-feed-button>Feed</button>
             </div>
           </div>
@@ -276,6 +277,7 @@
                 <input type="number" name="protein" min="0" placeholder="Protein (g)" required />
                 <input type="number" name="carbs" min="0" placeholder="Carbs (g)" required />
                 <input type="number" name="fat" min="0" placeholder="Fat (g)" required />
+                <input type="number" name="tokens" min="0" step="1" placeholder="Token reward (optional)" />
                 <button class="primary-button" type="submit">Add Food</button>
               </form>
               <ul class="data-list" data-food-list></ul>
@@ -298,6 +300,7 @@
               <h3>Feed & Log</h3>
               <div class="feed-actions">
                 <select data-meal-select></select>
+                <input type="number" min="0" step="1" placeholder="Meal tokens (optional)" data-meal-token />
                 <button class="primary-button" data-feed-button>Log Meal</button>
               </div>
               <div class="nutrition-grid compact">
@@ -419,6 +422,7 @@
             <h2>Nutrition</h2>
             <div class="feed-actions">
               <select data-meal-select></select>
+              <input type="number" min="0" step="1" placeholder="Meal tokens (optional)" data-meal-token />
               <button class="primary-button" data-feed-button>Feed</button>
             </div>
           </div>
@@ -474,7 +478,7 @@
           <input type="text" name="title" placeholder="Goal title" required />
           <input type="text" name="unit" placeholder="Unit (oz, reps, minutes)" required />
           <input type="number" name="target" min="1" step="0.1" placeholder="Target value" required />
-          <input type="number" name="reward" min="0" step="1" placeholder="Token reward" required />
+          <input type="number" name="reward" min="0" step="1" placeholder="Token reward (optional)" />
           <select name="category">
             <option value="">Category (optional)</option>
             <option value="Daily">Daily</option>

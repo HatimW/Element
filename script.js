@@ -358,13 +358,43 @@ function normalizeGoals() {
     if (typeof goal.current !== "number") {
       goal.current = 0;
     }
-    if (typeof goal.tokenReward !== "number") {
-      goal.tokenReward = Math.round(goal.target / 4) || 0;
-    }
+    const rewardValue = Number(goal.tokenReward);
+    goal.tokenReward = Number.isFinite(rewardValue) ? rewardValue : 0;
     if (typeof goal.category !== "string") {
       goal.category = "";
     }
+    if (typeof goal.completed !== "boolean") {
+      goal.completed = goal.target ? goal.current >= goal.target : false;
+    }
   });
+}
+
+function normalizeWorkouts() {
+  workouts.forEach((workout) => {
+    const rewardValue = Number(workout.tokens);
+    workout.tokens = Number.isFinite(rewardValue) ? rewardValue : 0;
+  });
+}
+
+function normalizeFoods() {
+  foods.forEach((food) => {
+    const rewardValue = Number(food.tokens);
+    food.tokens = Number.isFinite(rewardValue) ? rewardValue : 0;
+  });
+}
+
+function updateGoalProgress(goal) {
+  if (!goal || !goal.target) {
+    return;
+  }
+  const isComplete = goal.current >= goal.target;
+  if (isComplete && !goal.completed) {
+    tokens += goal.tokenReward;
+    goal.completed = true;
+    updateTokenCount();
+  } else if (!isComplete && goal.completed) {
+    goal.completed = false;
+  }
 }
 
 function renderGoals() {
@@ -420,11 +450,13 @@ function updateMacros() {
 }
 
 function computeFoodTotals(food, qty = 1) {
+  const tokenReward = Number.isFinite(food.tokens) ? food.tokens : 0;
   return {
     calories: food.calories * qty,
     protein: food.protein * qty,
     carbs: food.carbs * qty,
     fat: food.fat * qty,
+    tokens: tokenReward * qty,
   };
 }
 
@@ -441,9 +473,10 @@ function computeRecipeTotals(recipe) {
         protein: totals.protein + scaled.protein,
         carbs: totals.carbs + scaled.carbs,
         fat: totals.fat + scaled.fat,
+        tokens: totals.tokens + scaled.tokens,
       };
     },
-    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    { calories: 0, protein: 0, carbs: 0, fat: 0, tokens: 0 }
   );
 }
 
@@ -470,7 +503,7 @@ function renderMealSelects() {
   });
 }
 
-function logMeal(selection) {
+function logMeal(selection, tokenOverride = null) {
   if (!selection) {
     return;
   }
@@ -493,7 +526,8 @@ function logMeal(selection) {
     macroTotals[key] += totals[key];
   });
 
-  tokens += 5;
+  const rewardTokens = Number.isFinite(tokenOverride) ? tokenOverride : totals.tokens;
+  tokens += rewardTokens;
   updateTokenCount();
   updateMacros();
   saveState();
@@ -635,11 +669,12 @@ function renderFoods() {
   if (list) {
     list.innerHTML = "";
     foods.forEach((food) => {
+      const tokenLabel = food.tokens ? ` • ${food.tokens} tokens` : "";
       const item = document.createElement("li");
       item.innerHTML = `
         <div>
           <strong>${food.name}</strong>
-          <p class="muted">${food.serving} • ${food.carbs}C / ${food.protein}P / ${food.fat}F</p>
+          <p class="muted">${food.serving} • ${food.carbs}C / ${food.protein}P / ${food.fat}F${tokenLabel}</p>
         </div>
         <button data-quick-log="${food.id}">Log</button>
       `;
@@ -651,7 +686,8 @@ function renderFoods() {
     preview.innerHTML = "";
     foods.slice(0, 4).forEach((food) => {
       const item = document.createElement("li");
-      item.textContent = `${food.name} (${food.serving}) • ${food.carbs}C / ${food.protein}P / ${food.fat}F`;
+      const tokenLabel = food.tokens ? ` • ${food.tokens} tokens` : "";
+      item.textContent = `${food.name} (${food.serving}) • ${food.carbs}C / ${food.protein}P / ${food.fat}F${tokenLabel}`;
       preview.appendChild(item);
     });
   }
@@ -678,7 +714,7 @@ function renderRecipeBuilder() {
       ingredientList.appendChild(element);
     });
     const totals = computeRecipeTotals({ items: activeRecipe.items });
-    totalLabel.textContent = `Total: ${totals.carbs}C / ${totals.protein}P / ${totals.fat}F (${totals.calories} kcal)`;
+    totalLabel.textContent = `Total: ${totals.carbs}C / ${totals.protein}P / ${totals.fat}F (${totals.calories} kcal • ${totals.tokens} tokens)`;
   }
 
   if (previewList) {
@@ -692,7 +728,7 @@ function renderRecipeBuilder() {
         previewList.appendChild(line);
       });
       const totals = computeRecipeTotals(sample);
-      previewTotal.textContent = `Total: ${totals.carbs}C / ${totals.protein}P / ${totals.fat}F`;
+      previewTotal.textContent = `Total: ${totals.carbs}C / ${totals.protein}P / ${totals.fat}F • ${totals.tokens} tokens`;
     }
   }
 }
@@ -799,7 +835,8 @@ function completeWorkout() {
   if (!currentWorkout) {
     return;
   }
-  tokens += currentWorkout.tokens;
+  const rewardTokens = Number.isFinite(currentWorkout.tokens) ? currentWorkout.tokens : 0;
+  tokens += rewardTokens;
   updateTokenCount();
   schedule.forEach((entry) => {
     if (entry.label === currentWorkout.name) {
@@ -901,7 +938,12 @@ document.addEventListener("click", (event) => {
   if (feedButton) {
     const container = feedButton.closest(".feed-actions");
     const select = container ? container.querySelector("[data-meal-select]") : null;
-    logMeal(select ? select.value : null);
+    const tokenInput = container ? container.querySelector("[data-meal-token]") : null;
+    const overrideValue = tokenInput && tokenInput.value !== "" ? Number(tokenInput.value) : null;
+    logMeal(select ? select.value : null, overrideValue);
+    if (tokenInput) {
+      tokenInput.value = "";
+    }
   }
 
   if (event.target.matches("[data-add-exercise]")) {
@@ -999,6 +1041,7 @@ document.addEventListener("input", (event) => {
     const goal = goals.find((item) => item.id === event.target.dataset.goalInput);
     if (goal) {
       goal.current = Number(event.target.value);
+      updateGoalProgress(goal);
     }
     updateRings();
     saveState();
@@ -1028,7 +1071,8 @@ if (goalForm) {
     const title = formData.get("title");
     const unit = formData.get("unit");
     const target = Number(formData.get("target"));
-    const tokenReward = Number(formData.get("reward"));
+    const tokenRewardValue = Number(formData.get("reward"));
+    const tokenReward = Number.isFinite(tokenRewardValue) ? tokenRewardValue : 0;
     const category = formData.get("category") || "";
 
     if (!title || !unit || !target) {
@@ -1043,6 +1087,7 @@ if (goalForm) {
         goal.target = target;
         goal.tokenReward = tokenReward;
         goal.category = category;
+        goal.completed = goal.target ? goal.current >= goal.target : false;
       }
     } else {
       goals.unshift({
@@ -1053,6 +1098,7 @@ if (goalForm) {
         current: 0,
         tokenReward,
         category,
+        completed: false,
       });
     }
 
@@ -1094,14 +1140,15 @@ document.querySelectorAll("[data-workout-form]").forEach((form) => {
     const name = formData.get("name");
     const day = formData.get("day");
     const week = formData.get("week");
-    const workoutTokens = Number(formData.get("tokens")) || 0;
+    const workoutTokensValue = Number(formData.get("tokens"));
+    const workoutTokens = Number.isFinite(workoutTokensValue) ? workoutTokensValue : 0;
 
     workouts.unshift({
       id: createId(name),
       name,
       day,
       week,
-      tokens: workoutTokens || 20,
+      tokens: workoutTokens,
       items: activeWorkout.items.map((item) => ({ ...item })),
     });
 
@@ -1125,6 +1172,8 @@ document.querySelectorAll("[data-food-form]").forEach((form) => {
     event.preventDefault();
     const formData = new FormData(form);
     const name = formData.get("name");
+    const tokenValue = Number(formData.get("tokens"));
+    const tokenReward = Number.isFinite(tokenValue) ? tokenValue : 0;
     const food = {
       id: createId(name),
       name,
@@ -1133,6 +1182,7 @@ document.querySelectorAll("[data-food-form]").forEach((form) => {
       protein: Number(formData.get("protein")),
       carbs: Number(formData.get("carbs")),
       fat: Number(formData.get("fat")),
+      tokens: tokenReward,
     };
     foods.push(food);
     form.reset();
@@ -1170,6 +1220,8 @@ if (savedState) {
 }
 
 normalizeGoals();
+normalizeWorkouts();
+normalizeFoods();
 renderGoals();
 renderExerciseList();
 renderActiveWorkout();
