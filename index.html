@@ -52,21 +52,56 @@
             </div>
             <div class="avatar-body">
               <div class="avatar-frame">
-                <div class="avatar-ring">
+                <div class="avatar-ring avatar-display" data-avatar-display>
                   <div class="avatar-figure">
                     <div class="avatar-halo"></div>
+                    <div class="avatar-hair"></div>
                     <div class="avatar-face"></div>
+                    <div class="avatar-eyes"></div>
                     <div class="avatar-robe"></div>
+                    <div class="avatar-accessory"></div>
                   </div>
                 </div>
                 <div>
-                  <p class="avatar-label">Customize: skin tone, hair texture, apparel, aura</p>
+                  <p class="avatar-label">Customize: skin tone, hair, eyes, apparel, accessory</p>
                   <div class="avatar-swatches">
                     <span class="swatch water"></span>
                     <span class="swatch air"></span>
                     <span class="swatch fire"></span>
                     <span class="swatch earth"></span>
                   </div>
+                </div>
+              </div>
+              <div class="avatar-customize">
+                <div class="avatar-customize-header">
+                  <h3>Customization Panel</h3>
+                  <p class="muted">Selections persist and sync to mastery view.</p>
+                </div>
+                <div class="avatar-options">
+                  <label class="form-label">
+                    <span>Skin tone</span>
+                    <select data-avatar-select="skinTone"></select>
+                  </label>
+                  <label class="form-label">
+                    <span>Hair</span>
+                    <select data-avatar-select="hair"></select>
+                  </label>
+                  <label class="form-label">
+                    <span>Eyes</span>
+                    <select data-avatar-select="eyes"></select>
+                  </label>
+                  <label class="form-label">
+                    <span>Apparel</span>
+                    <select data-avatar-select="apparel"></select>
+                  </label>
+                  <label class="form-label">
+                    <span>Bending accessory</span>
+                    <select data-avatar-select="accessory"></select>
+                  </label>
+                </div>
+                <div class="avatar-progression">
+                  <span class="muted">Progression-based outfit</span>
+                  <strong data-avatar-outfit></strong>
                 </div>
               </div>
               <div class="skill-tree-grid" data-skill-preview></div>
@@ -471,14 +506,17 @@
               </div>
               <div class="avatar-body">
                 <div class="avatar-frame">
-                  <div class="avatar-ring avatar-state">
-                    <div class="avatar-figure">
-                      <div class="avatar-halo"></div>
-                      <div class="avatar-face"></div>
-                      <div class="avatar-robe"></div>
-                    </div>
+                <div class="avatar-ring avatar-state avatar-display" data-avatar-display>
+                  <div class="avatar-figure">
+                    <div class="avatar-halo"></div>
+                    <div class="avatar-hair"></div>
+                    <div class="avatar-face"></div>
+                    <div class="avatar-eyes"></div>
+                    <div class="avatar-robe"></div>
+                    <div class="avatar-accessory"></div>
                   </div>
                 </div>
+              </div>
                 <p class="avatar-label">Level up to unlock Acolyte, Master, and Avatar State gear.</p>
               </div>
             </div>
