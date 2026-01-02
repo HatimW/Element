@@ -261,6 +261,67 @@ const skillTrees = [
 
 const unlockedSkills = new Set(["air-1", "air-2", "water-1", "fire-1", "earth-1"]);
 
+const SPECIAL_ABILITIES = [
+  { id: "air-19", name: "Flight", key: "Q" },
+  { id: "fire-19", name: "Lightning", key: "E" },
+  { id: "earth-19", name: "Metal Armor", key: "R" },
+  { id: "water-19", name: "Healing", key: "T" },
+];
+
+const STAT_LABELS = {
+  health: "Health",
+  stamina: "Stamina",
+  damage: "Damage",
+};
+
+function createStatEffect(stat, amount) {
+  const label = `${STAT_LABELS[stat]} ${amount >= 0 ? "+" : ""}${amount}`;
+  return { type: "stat", stat, amount, label };
+}
+
+function buildSkillEffects(treeId, skill) {
+  const effects = [];
+  if (treeId === "balance") {
+    if (skill.name.toLowerCase().includes("stamina +")) {
+      effects.push(createStatEffect("stamina", Number(skill.name.match(/\+(\d+)/)?.[1]) || 0));
+    } else if (skill.name.toLowerCase().includes("health +")) {
+      effects.push(createStatEffect("health", Number(skill.name.match(/\+(\d+)/)?.[1]) || 0));
+    } else {
+      effects.push({ type: "perk", label: skill.name });
+    }
+  } else {
+    const treeBonus = {
+      air: createStatEffect("damage", 1),
+      water: createStatEffect("health", 2),
+      earth: createStatEffect("stamina", 2),
+      fire: createStatEffect("damage", 1),
+    }[treeId];
+    if (treeBonus) {
+      effects.push(treeBonus);
+    }
+  }
+
+  const specialAbility = SPECIAL_ABILITIES.find((ability) => ability.id === skill.id);
+  if (specialAbility) {
+    effects.push({ type: "perk", label: `Unlocks ${specialAbility.name}` });
+  }
+
+  return effects;
+}
+
+const skillLookup = new Map();
+skillTrees.forEach((tree) => {
+  tree.skills = tree.skills.map((skill, index, skills) => {
+    const entry = {
+      ...skill,
+      requires: index === 0 ? [] : [skills[index - 1].id],
+      effects: buildSkillEffects(tree.id, skill),
+    };
+    skillLookup.set(entry.id, entry);
+    return entry;
+  });
+});
+
 const tokenCount = document.getElementById("tokenCount");
 const goalModal = document.querySelector("[data-goal-modal]");
 const goalForm = document.querySelector("[data-goal-form]");
@@ -962,6 +1023,104 @@ function renderRecipeSelect() {
   });
 }
 
+function getSkillById(skillId) {
+  return skillLookup.get(skillId);
+}
+
+function getSkillName(skillId) {
+  const skill = getSkillById(skillId);
+  return skill ? skill.name : "Unknown skill";
+}
+
+function getUnlockedSkillEffects() {
+  const effects = [];
+  unlockedSkills.forEach((skillId) => {
+    const skill = getSkillById(skillId);
+    if (skill && Array.isArray(skill.effects)) {
+      effects.push(...skill.effects);
+    }
+  });
+  return effects;
+}
+
+function getActiveBonusesSummary() {
+  const statBonuses = {
+    health: 0,
+    stamina: 0,
+    damage: 0,
+  };
+  const perkBonuses = new Set();
+
+  getUnlockedSkillEffects().forEach((effect) => {
+    if (effect.type === "stat") {
+      statBonuses[effect.stat] += effect.amount;
+    } else if (effect.label) {
+      perkBonuses.add(effect.label);
+    }
+  });
+
+  return { statBonuses, perkBonuses: Array.from(perkBonuses) };
+}
+
+function getGameStateWithBonuses() {
+  const derived = { ...gameState };
+  const { statBonuses } = getActiveBonusesSummary();
+  Object.entries(statBonuses).forEach(([stat, amount]) => {
+    if (typeof derived[stat] === "number") {
+      derived[stat] += amount;
+    }
+  });
+  return derived;
+}
+
+function renderGameBonuses() {
+  const list = document.querySelector("[data-game-bonuses]");
+  if (!list) {
+    return;
+  }
+  list.innerHTML = "";
+  const { statBonuses, perkBonuses } = getActiveBonusesSummary();
+  const entries = [];
+
+  Object.entries(statBonuses).forEach(([stat, amount]) => {
+    if (amount !== 0) {
+      entries.push(`${STAT_LABELS[stat]} +${amount}`);
+    }
+  });
+
+  perkBonuses.forEach((bonus) => entries.push(bonus));
+
+  if (!entries.length) {
+    const empty = document.createElement("li");
+    empty.textContent = "No active bonuses yet.";
+    list.appendChild(empty);
+    return;
+  }
+
+  entries.forEach((bonus) => {
+    const item = document.createElement("li");
+    item.textContent = bonus;
+    list.appendChild(item);
+  });
+}
+
+function renderSpecialAbilities() {
+  const list = document.querySelector("[data-special-abilities]");
+  if (!list) {
+    return;
+  }
+  list.innerHTML = "";
+  SPECIAL_ABILITIES.forEach((ability) => {
+    const unlocked = unlockedSkills.has(ability.id);
+    const item = document.createElement("li");
+    item.innerHTML = `
+      <span>${ability.name} (${ability.key})</span>
+      <strong>${unlocked ? "Unlocked" : "Locked"}</strong>
+    `;
+    list.appendChild(item);
+  });
+}
+
 function renderSkillPreview() {
   const container = document.querySelector("[data-skill-preview]");
   if (!container) {
@@ -992,10 +1151,18 @@ function renderSkillTrees() {
     const list = tree.skills
       .map((skill) => {
         const unlocked = unlockedSkills.has(skill.id);
+        const requirementsMet = skill.requires.every((requirement) => unlockedSkills.has(requirement));
+        const requirementLabel = requirementsMet
+          ? ""
+          : `Requires ${skill.requires.map((requirement) => getSkillName(requirement)).join(", ")}`;
+        const disabled = unlocked || !requirementsMet || tokens < skill.cost;
         return `
-          <li>
-            <span>${skill.name}</span>
-            <button data-unlock-skill="${skill.id}" data-cost="${skill.cost}" ${unlocked ? "disabled" : ""}>
+          <li class="skill-entry">
+            <div class="skill-details">
+              <span class="skill-name">${skill.name}</span>
+              ${requirementLabel ? `<span class="skill-requirement">${requirementLabel}</span>` : ""}
+            </div>
+            <button data-unlock-skill="${skill.id}" data-cost="${skill.cost}" ${disabled ? "disabled" : ""}>
               ${unlocked ? "Unlocked" : `${skill.cost} tokens`}
             </button>
           </li>
@@ -1016,12 +1183,13 @@ function renderGameStats() {
     return;
   }
   container.innerHTML = "";
+  const displayState = getGameStateWithBonuses();
   const stats = [
-    { label: "Level", value: gameState.level },
-    { label: "Wave", value: gameState.wave },
-    { label: "Health", value: gameState.health },
-    { label: "Stamina", value: gameState.stamina },
-    { label: "Damage", value: gameState.damage },
+    { label: "Level", value: displayState.level },
+    { label: "Wave", value: displayState.wave },
+    { label: "Health", value: displayState.health },
+    { label: "Stamina", value: displayState.stamina },
+    { label: "Damage", value: displayState.damage },
   ];
   stats.forEach((stat) => {
     const card = document.createElement("div");
@@ -1211,11 +1379,16 @@ document.addEventListener("click", (event) => {
   if (event.target.matches("[data-unlock-skill]")) {
     const cost = Number(event.target.dataset.cost);
     const skillId = event.target.dataset.unlockSkill;
-    if (!unlockedSkills.has(skillId) && tokens >= cost) {
+    const skill = getSkillById(skillId);
+    const requirementsMet = skill ? skill.requires.every((requirement) => unlockedSkills.has(requirement)) : false;
+    if (skill && !unlockedSkills.has(skillId) && requirementsMet && tokens >= cost) {
       tokens -= cost;
       unlockedSkills.add(skillId);
       updateTokenCount();
       renderSkillTrees();
+      renderGameStats();
+      renderGameBonuses();
+      renderSpecialAbilities();
       saveState();
     }
   }
@@ -1535,6 +1708,8 @@ renderRecipeBuilder();
 renderSkillPreview();
 renderSkillTrees();
 renderGameStats();
+renderGameBonuses();
+renderSpecialAbilities();
 renderWaveLog();
 updateMacros();
 updateTokenCount();

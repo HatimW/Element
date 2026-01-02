@@ -408,6 +408,25 @@ body {
   gap: 8px;
 }
 
+.skill-entry {
+  align-items: flex-start;
+}
+
+.skill-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.skill-name {
+  color: var(--ink);
+}
+
+.skill-requirement {
+  font-size: 11px;
+  color: var(--muted);
+}
+
 .skill-list button {
   border-radius: 999px;
   border: 1px solid var(--border);
@@ -800,6 +819,13 @@ body {
 .stat-list {
   display: grid;
   gap: 10px;
+}
+
+.bonus-panel {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .stat-card {
