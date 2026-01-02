@@ -337,6 +337,52 @@ const gameState = {
   damage: 34,
 };
 
+const gameCanvas = document.querySelector("[data-game-canvas]");
+const gameReadout = document.querySelector("[data-game-readout]");
+const gameContext = gameCanvas ? gameCanvas.getContext("2d") : null;
+
+const GAME_SETTINGS = {
+  playerRadius: 14,
+  enemyRadius: 8,
+  baseSpeed: 2.4,
+  dashSpeed: 6.5,
+  dashDuration: 180,
+  dashCooldown: 800,
+  basicCooldown: 300,
+  specialCooldown: 3000,
+  arenaPadding: 24,
+};
+
+const gameRuntime = {
+  running: false,
+  lastFrame: 0,
+  waveActive: false,
+  waveReward: 0,
+  enemies: [],
+  effects: [],
+  lastDirection: { x: 1, y: 0 },
+  keyState: new Set(),
+  player: {
+    x: gameCanvas ? gameCanvas.width / 2 : 0,
+    y: gameCanvas ? gameCanvas.height / 2 : 0,
+    health: gameState.health,
+    stamina: gameState.stamina,
+    dashEndsAt: 0,
+  },
+  cooldowns: {
+    basic: 0,
+    special: 0,
+    dash: 0,
+  },
+  buffs: {
+    flightEndsAt: 0,
+    armorEndsAt: 0,
+  },
+  maxHealth: gameState.health,
+  maxStamina: gameState.stamina,
+  damage: gameState.damage,
+};
+
 const tabButtons = document.querySelectorAll("[data-tab]");
 const tabPanels = document.querySelectorAll("[data-panel]");
 
@@ -1121,6 +1167,105 @@ function renderSpecialAbilities() {
   });
 }
 
+function syncGameRuntimeStats() {
+  if (!gameCanvas) {
+    return;
+  }
+  const displayState = getGameStateWithBonuses();
+  gameRuntime.maxHealth = displayState.health;
+  gameRuntime.maxStamina = displayState.stamina;
+  gameRuntime.damage = displayState.damage;
+  gameRuntime.player.health = Math.min(gameRuntime.player.health, gameRuntime.maxHealth);
+  gameRuntime.player.stamina = Math.min(gameRuntime.player.stamina, gameRuntime.maxStamina);
+}
+
+function getWaveScaling(wave) {
+  const enemyCount = Math.min(6 + wave, 18);
+  const enemyHealth = Math.round(26 + wave * 9);
+  const enemyDamage = Math.round(5 + wave * 1.6);
+  const enemySpeed = 0.6 + wave * 0.04;
+  const reward = Math.round(12 + wave * 6);
+  return { enemyCount, enemyHealth, enemyDamage, enemySpeed, reward };
+}
+
+function updateGameReadout(message = "") {
+  if (!gameReadout) {
+    return;
+  }
+  const waveStatus = gameRuntime.waveActive ? "Wave in progress" : "Wave ready";
+  const base = `Health ${Math.round(gameRuntime.player.health)}/${Math.round(
+    gameRuntime.maxHealth,
+  )} • Stamina ${Math.round(gameRuntime.player.stamina)}/${Math.round(gameRuntime.maxStamina)}`;
+  gameReadout.textContent = [base, waveStatus, message].filter(Boolean).join(" • ");
+}
+
+function randomEdgePosition() {
+  const width = gameCanvas.width;
+  const height = gameCanvas.height;
+  const side = Math.floor(Math.random() * 4);
+  if (side === 0) {
+    return { x: Math.random() * width, y: 0 };
+  }
+  if (side === 1) {
+    return { x: width, y: Math.random() * height };
+  }
+  if (side === 2) {
+    return { x: Math.random() * width, y: height };
+  }
+  return { x: 0, y: Math.random() * height };
+}
+
+function spawnWave() {
+  if (!gameCanvas || !gameContext || gameRuntime.waveActive) {
+    return;
+  }
+  syncGameRuntimeStats();
+  const scaling = getWaveScaling(gameState.wave);
+  gameRuntime.enemies = Array.from({ length: scaling.enemyCount }, () => {
+    const position = randomEdgePosition();
+    return {
+      x: position.x,
+      y: position.y,
+      radius: GAME_SETTINGS.enemyRadius,
+      health: scaling.enemyHealth,
+      maxHealth: scaling.enemyHealth,
+      damage: scaling.enemyDamage,
+      speed: scaling.enemySpeed,
+      hitCooldown: 0,
+      slowEndsAt: 0,
+    };
+  });
+  gameRuntime.waveActive = true;
+  gameRuntime.waveReward = scaling.reward;
+  gameRuntime.effects.push({
+    type: "text",
+    text: `Wave ${gameState.wave} begins!`,
+    createdAt: performance.now(),
+  });
+  updateGameReadout();
+}
+
+function completeWave() {
+  if (!gameRuntime.waveActive) {
+    return;
+  }
+  tokens += gameRuntime.waveReward;
+  gameState.wave += 1;
+  gameState.level = Math.max(gameState.level, Math.floor(gameState.wave / 2) + 6);
+  updateTokenCount();
+  gameRuntime.waveActive = false;
+  gameRuntime.effects.push({
+    type: "text",
+    text: `Wave cleared! +${gameRuntime.waveReward} tokens`,
+    createdAt: performance.now(),
+  });
+  gameRuntime.waveReward = 0;
+  renderGameStats();
+  renderWaveLog();
+  updateGameReadout();
+  saveState();
+}
+
 function renderSkillPreview() {
   const container = document.querySelector("[data-skill-preview]");
   if (!container) {
@@ -1184,11 +1329,14 @@ function renderGameStats() {
   }
   container.innerHTML = "";
   const displayState = getGameStateWithBonuses();
+  syncGameRuntimeStats();
+  const healthLabel = `${Math.round(gameRuntime.player.health)} / ${Math.round(gameRuntime.maxHealth)}`;
+  const staminaLabel = `${Math.round(gameRuntime.player.stamina)} / ${Math.round(gameRuntime.maxStamina)}`;
   const stats = [
     { label: "Level", value: displayState.level },
     { label: "Wave", value: displayState.wave },
-    { label: "Health", value: displayState.health },
-    { label: "Stamina", value: displayState.stamina },
+    { label: "Health", value: healthLabel },
+    { label: "Stamina", value: staminaLabel },
     { label: "Damage", value: displayState.damage },
   ];
   stats.forEach((stat) => {
@@ -1197,6 +1345,7 @@ function renderGameStats() {
     card.innerHTML = `<span>${stat.label}</span><strong>${stat.value}</strong>`;
     container.appendChild(card);
   });
+  updateGameReadout();
 }
 
 function renderWaveLog() {
@@ -1206,11 +1355,230 @@ function renderWaveLog() {
   }
   log.innerHTML = "";
   for (let i = 0; i < 4; i += 1) {
-    const difficulty = Math.round((gameState.wave + i) * 1.3);
+    const wave = gameState.wave + i;
+    const scaling = getWaveScaling(wave);
+    const difficulty = Math.round(scaling.enemyHealth + scaling.enemyDamage * 1.4);
     const entry = document.createElement("li");
-    entry.textContent = `Wave ${gameState.wave + i}: Spirit strength ${difficulty} • Rewards ${10 + difficulty} tokens`;
+    entry.textContent = `Wave ${wave}: Spirit strength ${difficulty} • Rewards ${scaling.reward} tokens`;
     log.appendChild(entry);
   }
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function registerEffect(effect) {
+  gameRuntime.effects.push({ ...effect, createdAt: performance.now() });
+}
+
+function applyEnemyDamage(amount, source) {
+  const now = performance.now();
+  const armorActive = gameRuntime.buffs.armorEndsAt > now;
+  const shieldActive = gameRuntime.keyState.has("Shift") && gameRuntime.player.stamina > 0;
+  let finalDamage = amount;
+  if (armorActive) {
+    finalDamage *= 0.65;
+  }
+  if (shieldActive) {
+    finalDamage *= 0.5;
+    gameRuntime.player.stamina = clamp(gameRuntime.player.stamina - amount * 0.8, 0, gameRuntime.maxStamina);
+  }
+  gameRuntime.player.health = clamp(gameRuntime.player.health - finalDamage, 0, gameRuntime.maxHealth);
+  registerEffect({ type: "impact", source });
+  updateGameReadout();
+}
+
+function handleBasicAttack(elementKey) {
+  if (!gameRuntime.waveActive || performance.now() < gameRuntime.cooldowns.basic) {
+    return;
+  }
+  const attackMap = {
+    1: { name: "Air", multiplier: 0.9, range: 90, slow: 0 },
+    2: { name: "Water", multiplier: 0.8, range: 80, slow: 900 },
+    3: { name: "Earth", multiplier: 1.1, range: 70, slow: 0 },
+    4: { name: "Fire", multiplier: 1.2, range: 75, slow: 0 },
+  };
+  const attack = attackMap[elementKey];
+  if (!attack) {
+    return;
+  }
+  const baseDamage = gameRuntime.damage * attack.multiplier;
+  let hits = 0;
+  gameRuntime.enemies.forEach((enemy) => {
+    const dx = enemy.x - gameRuntime.player.x;
+    const dy = enemy.y - gameRuntime.player.y;
+    const distance = Math.hypot(dx, dy);
+    if (distance <= attack.range) {
+      enemy.health -= baseDamage;
+      hits += 1;
+      if (attack.slow) {
+        enemy.slowEndsAt = performance.now() + attack.slow;
+      }
+    }
+  });
+  if (hits > 0) {
+    registerEffect({
+      type: "burst",
+      text: `${attack.name} hit x${hits}`,
+    });
+  }
+  gameRuntime.cooldowns.basic = performance.now() + GAME_SETTINGS.basicCooldown;
+}
+
+function activateSpecialAbility(key) {
+  const now = performance.now();
+  if (now < gameRuntime.cooldowns.special) {
+    return;
+  }
+  const isUnlocked = SPECIAL_ABILITIES.some((ability) => ability.key === key && unlockedSkills.has(ability.id));
+  if (!isUnlocked) {
+    registerEffect({ type: "text", text: "Ability locked" });
+    return;
+  }
+  if (key === "Q") {
+    gameRuntime.buffs.flightEndsAt = now + 4000;
+    registerEffect({ type: "text", text: "Flight activated" });
+  }
+  if (key === "E") {
+    const targets = gameRuntime.enemies
+      .slice()
+      .sort((a, b) => {
+        const distA = Math.hypot(a.x - gameRuntime.player.x, a.y - gameRuntime.player.y);
+        const distB = Math.hypot(b.x - gameRuntime.player.x, b.y - gameRuntime.player.y);
+        return distA - distB;
+      })
+      .slice(0, 4);
+    targets.forEach((enemy) => {
+      enemy.health -= gameRuntime.damage * 2.2;
+    });
+    registerEffect({ type: "text", text: "Lightning strike" });
+  }
+  if (key === "R") {
+    gameRuntime.buffs.armorEndsAt = now + 5000;
+    registerEffect({ type: "text", text: "Metal armor online" });
+  }
+  if (key === "T") {
+    const healAmount = gameRuntime.maxHealth * 0.35;
+    gameRuntime.player.health = clamp(gameRuntime.player.health + healAmount, 0, gameRuntime.maxHealth);
+    registerEffect({ type: "text", text: "Healing surge" });
+  }
+  gameRuntime.player.stamina = clamp(gameRuntime.player.stamina - 12, 0, gameRuntime.maxStamina);
+  gameRuntime.cooldowns.special = now + GAME_SETTINGS.specialCooldown;
+  renderGameStats();
+  updateGameReadout();
+}
+
+function updateGameArena(timestamp) {
+  if (!gameContext || !gameCanvas) {
+    return;
+  }
+  if (!gameRuntime.running) {
+    gameRuntime.lastFrame = timestamp;
+    gameRuntime.running = true;
+  }
+  const delta = Math.min((timestamp - gameRuntime.lastFrame) / 16.666, 3);
+  gameRuntime.lastFrame = timestamp;
+  const now = performance.now();
+
+  const moveX = (gameRuntime.keyState.has("ArrowRight") || gameRuntime.keyState.has("d") ? 1 : 0) -
+    (gameRuntime.keyState.has("ArrowLeft") || gameRuntime.keyState.has("a") ? 1 : 0);
+  const moveY = (gameRuntime.keyState.has("ArrowDown") || gameRuntime.keyState.has("s") ? 1 : 0) -
+    (gameRuntime.keyState.has("ArrowUp") || gameRuntime.keyState.has("w") ? 1 : 0);
+  const vectorLength = Math.hypot(moveX, moveY) || 1;
+  let speed = GAME_SETTINGS.baseSpeed;
+  if (gameRuntime.buffs.flightEndsAt > now) {
+    speed *= 1.35;
+  }
+  if (gameRuntime.player.dashEndsAt > now) {
+    speed = GAME_SETTINGS.dashSpeed;
+  }
+
+  if (moveX || moveY) {
+    gameRuntime.lastDirection = { x: moveX / vectorLength, y: moveY / vectorLength };
+  }
+
+  gameRuntime.player.x += (moveX / vectorLength) * speed * delta;
+  gameRuntime.player.y += (moveY / vectorLength) * speed * delta;
+  gameRuntime.player.x = clamp(
+    gameRuntime.player.x,
+    GAME_SETTINGS.arenaPadding,
+    gameCanvas.width - GAME_SETTINGS.arenaPadding,
+  );
+  gameRuntime.player.y = clamp(
+    gameRuntime.player.y,
+    GAME_SETTINGS.arenaPadding,
+    gameCanvas.height - GAME_SETTINGS.arenaPadding,
+  );
+
+  gameRuntime.player.stamina = clamp(
+    gameRuntime.player.stamina + 0.35 * delta,
+    0,
+    gameRuntime.maxStamina,
+  );
+
+  gameRuntime.enemies.forEach((enemy) => {
+    const dx = gameRuntime.player.x - enemy.x;
+    const dy = gameRuntime.player.y - enemy.y;
+    const distance = Math.hypot(dx, dy) || 1;
+    const slowMultiplier = enemy.slowEndsAt > now ? 0.6 : 1;
+    enemy.x += (dx / distance) * enemy.speed * slowMultiplier * delta;
+    enemy.y += (dy / distance) * enemy.speed * slowMultiplier * delta;
+    if (distance < enemy.radius + GAME_SETTINGS.playerRadius + 4 && now > enemy.hitCooldown) {
+      applyEnemyDamage(enemy.damage, "enemy");
+      enemy.hitCooldown = now + 550;
+    }
+  });
+
+  gameRuntime.enemies = gameRuntime.enemies.filter((enemy) => enemy.health > 0);
+  if (gameRuntime.waveActive && gameRuntime.enemies.length === 0) {
+    completeWave();
+  }
+
+  gameRuntime.effects = gameRuntime.effects.filter((effect) => now - effect.createdAt < 1200);
+
+  gameContext.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+
+  gameContext.fillStyle = "rgba(14, 20, 28, 0.35)";
+  for (let x = 0; x < gameCanvas.width; x += 32) {
+    for (let y = 0; y < gameCanvas.height; y += 32) {
+      gameContext.fillRect(x, y, 1, 1);
+    }
+  }
+
+  gameContext.beginPath();
+  gameContext.fillStyle = "rgba(90, 150, 200, 0.3)";
+  gameContext.arc(gameRuntime.player.x, gameRuntime.player.y, GAME_SETTINGS.playerRadius + 8, 0, Math.PI * 2);
+  gameContext.fill();
+
+  gameContext.beginPath();
+  gameContext.fillStyle = "#e3f4ff";
+  gameContext.arc(gameRuntime.player.x, gameRuntime.player.y, GAME_SETTINGS.playerRadius, 0, Math.PI * 2);
+  gameContext.fill();
+
+  gameRuntime.enemies.forEach((enemy) => {
+    const healthRatio = enemy.health / enemy.maxHealth;
+    gameContext.beginPath();
+    gameContext.fillStyle = `rgba(255, 120, 110, ${0.6 + (1 - healthRatio) * 0.4})`;
+    gameContext.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);
+    gameContext.fill();
+  });
+
+  gameRuntime.effects.forEach((effect) => {
+    if (effect.type === "text" || effect.type === "burst") {
+      gameContext.fillStyle = "rgba(230, 245, 255, 0.9)";
+      gameContext.font = "12px Inter, sans-serif";
+      gameContext.fillText(effect.text, 16, 24 + gameRuntime.effects.indexOf(effect) * 14);
+    }
+    if (effect.type === "impact") {
+      gameContext.strokeStyle = "rgba(250, 200, 120, 0.7)";
+      gameContext.beginPath();
+      gameContext.arc(gameRuntime.player.x, gameRuntime.player.y, 26, 0, Math.PI * 2);
+      gameContext.stroke();
+    }
+  });
+
+  requestAnimationFrame(updateGameArena);
 }
 
 function completeWorkout() {
@@ -1389,28 +1757,25 @@ document.addEventListener("click", (event) => {
       renderGameStats();
       renderGameBonuses();
       renderSpecialAbilities();
+      updateGameReadout();
       saveState();
     }
   }
 
   if (event.target.matches("[data-start-wave]")) {
-    gameState.wave += 1;
-    gameState.level = Math.max(gameState.level, Math.floor(gameState.wave / 2) + 6);
-    gameState.health = Math.max(40, gameState.health - 8);
-    gameState.stamina = Math.max(30, gameState.stamina - 5);
-    tokens += 8 + gameState.wave;
-    updateTokenCount();
-    renderGameStats();
-    renderWaveLog();
-    saveState();
+    spawnWave();
   }
 
   if (event.target.matches("[data-special-move]")) {
-    tokens += 15;
-    gameState.stamina = Math.max(0, gameState.stamina - 10);
-    updateTokenCount();
-    renderGameStats();
-    saveState();
+    const priorityKeys = ["Q", "E", "R", "T"];
+    const available = priorityKeys.find((key) =>
+      SPECIAL_ABILITIES.some((ability) => ability.key === key && unlockedSkills.has(ability.id)),
+    );
+    if (available) {
+      activateSpecialAbility(available);
+    } else {
+      registerEffect({ type: "text", text: "No special abilities unlocked" });
+    }
   }
 
   if (event.target.matches("[data-complete-workout]")) {
@@ -1477,6 +1842,62 @@ document.addEventListener("input", (event) => {
       }
     });
     renderCalendar();
+  }
+});
+
+function isTypingInField(target) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  return (
+    target.tagName === "INPUT" ||
+    target.tagName === "TEXTAREA" ||
+    target.tagName === "SELECT" ||
+    target.isContentEditable
+  );
+}
+
+window.addEventListener("keydown", (event) => {
+  if (isTypingInField(event.target)) {
+    return;
+  }
+  const key = event.key;
+  const normalized = key.length === 1 ? key.toLowerCase() : key;
+  const now = performance.now();
+
+  if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "w", "a", "s", "d", "Shift"].includes(normalized)) {
+    event.preventDefault();
+    gameRuntime.keyState.add(normalized);
+  }
+
+  if (["1", "2", "3", "4"].includes(key)) {
+    event.preventDefault();
+    handleBasicAttack(Number(key));
+  }
+
+  if (key === " " || event.code === "Space") {
+    event.preventDefault();
+    if (now > gameRuntime.cooldowns.dash && gameRuntime.player.stamina > 6) {
+      gameRuntime.player.dashEndsAt = now + GAME_SETTINGS.dashDuration;
+      gameRuntime.cooldowns.dash = now + GAME_SETTINGS.dashCooldown;
+      gameRuntime.player.stamina = clamp(gameRuntime.player.stamina - 6, 0, gameRuntime.maxStamina);
+      registerEffect({ type: "text", text: "Dash" });
+      updateGameReadout();
+    }
+  }
+
+  const specialKey = key.toUpperCase();
+  if (["Q", "E", "R", "T"].includes(specialKey)) {
+    event.preventDefault();
+    activateSpecialAbility(specialKey);
+  }
+});
+
+window.addEventListener("keyup", (event) => {
+  const key = event.key;
+  const normalized = key.length === 1 ? key.toLowerCase() : key;
+  if (gameRuntime.keyState.has(normalized)) {
+    gameRuntime.keyState.delete(normalized);
   }
 });
 
@@ -1713,3 +2134,8 @@ renderSpecialAbilities();
 renderWaveLog();
 updateMacros();
 updateTokenCount();
+syncGameRuntimeStats();
+updateGameReadout();
+if (gameCanvas && gameContext) {
+  requestAnimationFrame(updateGameArena);
+}
