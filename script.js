@@ -274,6 +274,54 @@ const STAT_LABELS = {
   damage: "Damage",
 };
 
+const AVATAR_OPTIONS = {
+  skinTone: [
+    { value: "mist", label: "Mist" },
+    { value: "sand", label: "Sandstone" },
+    { value: "ember", label: "Ember" },
+    { value: "cedar", label: "Cedar" },
+  ],
+  hair: [
+    { value: "short", label: "Short Crop" },
+    { value: "braid", label: "Braided" },
+    { value: "waves", label: "Temple Waves" },
+    { value: "topknot", label: "Top Knot" },
+  ],
+  eyes: [
+    { value: "ice", label: "Ice" },
+    { value: "emerald", label: "Emerald" },
+    { value: "amber", label: "Amber" },
+    { value: "violet", label: "Violet" },
+  ],
+  apparel: [
+    { value: "nomad", label: "Nomad Robes" },
+    { value: "warrior", label: "Warrior Wraps" },
+    { value: "sage", label: "Sage Mantle" },
+    { value: "traveler", label: "Traveler Tunic" },
+  ],
+  accessory: [
+    { value: "fan", label: "Air Fan" },
+    { value: "orb", label: "Water Orb" },
+    { value: "scroll", label: "Earth Scroll" },
+    { value: "sigil", label: "Fire Sigil" },
+  ],
+};
+
+const AVATAR_OUTFITS = [
+  { id: "novice", label: "Novice", minLevel: 1 },
+  { id: "acolyte", label: "Acolyte", minLevel: 5 },
+  { id: "master", label: "Master", minLevel: 10 },
+  { id: "avatar-state", label: "Avatar State", minLevel: 15 },
+];
+
+let avatarState = {
+  skinTone: "sand",
+  hair: "waves",
+  eyes: "amber",
+  apparel: "nomad",
+  accessory: "orb",
+};
+
 function createStatEffect(stat, amount) {
   const label = `${STAT_LABELS[stat]} ${amount >= 0 ? "+" : ""}${amount}`;
   return { type: "stat", stat, amount, label };
@@ -415,6 +463,7 @@ function saveState() {
     tokens,
     unlockedSkills: Array.from(unlockedSkills),
     gameState,
+    avatarState,
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
@@ -451,6 +500,9 @@ function applyState(saved) {
   }
   if (saved.gameState && typeof saved.gameState === "object") {
     Object.assign(gameState, saved.gameState);
+  }
+  if (saved.avatarState && typeof saved.avatarState === "object") {
+    Object.assign(avatarState, saved.avatarState);
   }
 }
 
@@ -577,6 +629,68 @@ function normalizeSchedule() {
     if (!entry.id) {
       entry.id = createId(`${entry.label || "schedule"}-${entry.day || entry.date || entry.weekIndex}`);
     }
+  });
+}
+
+function getAvatarOutfitTier(level) {
+  const match =
+    AVATAR_OUTFITS.filter((outfit) => level >= outfit.minLevel).pop() || AVATAR_OUTFITS[0];
+  return match;
+}
+
+function normalizeAvatarState() {
+  Object.entries(AVATAR_OPTIONS).forEach(([key, options]) => {
+    const values = options.map((option) => option.value);
+    if (!values.includes(avatarState[key])) {
+      avatarState[key] = values[0];
+    }
+  });
+}
+
+function renderAvatarControls() {
+  document.querySelectorAll("[data-avatar-select]").forEach((select) => {
+    const key = select.dataset.avatarSelect;
+    const options = AVATAR_OPTIONS[key] || [];
+    select.innerHTML = options
+      .map(
+        (option) =>
+          `<option value="${option.value}">${option.label}</option>`,
+      )
+      .join("");
+    if (avatarState[key]) {
+      select.value = avatarState[key];
+    }
+  });
+  applyAvatarDisplay();
+}
+
+function applyAvatarDisplay() {
+  const outfit = getAvatarOutfitTier(gameState.level);
+  const classGroups = {
+    skinTone: AVATAR_OPTIONS.skinTone.map((option) => `skin-${option.value}`),
+    hair: AVATAR_OPTIONS.hair.map((option) => `hair-${option.value}`),
+    eyes: AVATAR_OPTIONS.eyes.map((option) => `eyes-${option.value}`),
+    apparel: AVATAR_OPTIONS.apparel.map((option) => `apparel-${option.value}`),
+    accessory: AVATAR_OPTIONS.accessory.map((option) => `accessory-${option.value}`),
+    outfit: AVATAR_OUTFITS.map((option) => `outfit-${option.id}`),
+  };
+
+  document.querySelectorAll("[data-avatar-display]").forEach((display) => {
+    Object.values(classGroups).forEach((group) => {
+      display.classList.remove(...group);
+    });
+    display.classList.add(
+      `skin-${avatarState.skinTone}`,
+      `hair-${avatarState.hair}`,
+      `eyes-${avatarState.eyes}`,
+      `apparel-${avatarState.apparel}`,
+      `accessory-${avatarState.accessory}`,
+      `outfit-${outfit.id}`,
+    );
+  });
+
+  document.querySelectorAll("[data-avatar-outfit]").forEach((label) => {
+    label.textContent = `${outfit.label} Outfit • Level ${gameState.level}`;
   });
 }
 
@@ -1346,6 +1460,7 @@ function renderGameStats() {
     container.appendChild(card);
   });
   updateGameReadout();
+  applyAvatarDisplay();
 }
 
 function renderWaveLog() {
@@ -1794,6 +1909,16 @@ document.addEventListener("click", (event) => {
 });
 
 document.addEventListener("change", (event) => {
+  if (event.target.matches("[data-avatar-select]")) {
+    const key = event.target.dataset.avatarSelect;
+    if (AVATAR_OPTIONS[key]) {
+      avatarState[key] = event.target.value;
+      normalizeAvatarState();
+      applyAvatarDisplay();
+      saveState();
+    }
+  }
+
   if (event.target.matches("[data-workout-item]")) {
     const index = Number(event.target.dataset.workoutItem);
     const currentWorkout = workouts[0];
@@ -2115,6 +2240,7 @@ normalizeGoals();
 normalizeWorkouts();
 normalizeFoods();
 normalizeSchedule();
+normalizeAvatarState();
 initializeScheduleForms();
 renderGoals();
 renderExerciseList();
@@ -2126,6 +2252,7 @@ renderFoods();
 renderMealSelects();
 renderRecipeSelect();
 renderRecipeBuilder();
+renderAvatarControls();
 renderSkillPreview();
 renderSkillTrees();
 renderGameStats();
