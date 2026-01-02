@@ -39,7 +39,7 @@
         <section class="section daily-goals">
           <div class="section-heading">
             <h2>Daily Goals</h2>
-            <button class="ghost-button">Add Goal</button>
+            <button class="ghost-button" data-add-goal>Add Goal</button>
           </div>
           <div class="goal-grid" data-goal-grid></div>
         </section>
@@ -373,7 +373,7 @@
         <section class="section daily-goals">
           <div class="section-heading">
             <h2>Daily Goals</h2>
-            <button class="ghost-button">Add Goal</button>
+            <button class="ghost-button" data-add-goal>Add Goal</button>
           </div>
           <div class="goal-grid" data-goal-grid></div>
         </section>
@@ -463,6 +463,30 @@
         </section>
       </div>
     </main>
+
+    <div class="modal" data-goal-modal aria-hidden="true">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 data-goal-modal-title>Add Goal</h3>
+          <button class="ghost-button" type="button" data-close-goal-modal>Close</button>
+        </div>
+        <form class="form-grid" data-goal-form>
+          <input type="text" name="title" placeholder="Goal title" required />
+          <input type="text" name="unit" placeholder="Unit (oz, reps, minutes)" required />
+          <input type="number" name="target" min="1" step="0.1" placeholder="Target value" required />
+          <input type="number" name="reward" min="0" step="1" placeholder="Token reward" required />
+          <select name="category">
+            <option value="">Category (optional)</option>
+            <option value="Daily">Daily</option>
+            <option value="Weekly">Weekly</option>
+          </select>
+          <div class="modal-actions">
+            <button class="primary-button" type="submit">Save Goal</button>
+            <button class="ghost-button" type="button" data-clear-goal-form>Reset</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
     <script src="script.js"></script>
   </body>

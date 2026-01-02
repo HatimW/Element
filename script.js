@@ -1,10 +1,10 @@
 const STORAGE_KEY = "elementState";
 
 let goals = [
-  { id: "water", title: "Water Intake", unit: "oz", target: 100, current: 60 },
-  { id: "pushups", title: "Pushups", unit: "reps", target: 100, current: 70 },
-  { id: "run", title: "Run", unit: "mile", target: 1, current: 0.5 },
-  { id: "mobility", title: "Mobility Flow", unit: "min", target: 20, current: 10 },
+  { id: "water", title: "Water Intake", unit: "oz", target: 100, current: 60, tokenReward: 25, category: "Daily" },
+  { id: "pushups", title: "Pushups", unit: "reps", target: 100, current: 70, tokenReward: 30, category: "Daily" },
+  { id: "run", title: "Run", unit: "mile", target: 1, current: 0.5, tokenReward: 20, category: "Weekly" },
+  { id: "mobility", title: "Mobility Flow", unit: "min", target: 20, current: 10, tokenReward: 15, category: "Daily" },
 ];
 
 let tokens = 120;
@@ -259,6 +259,11 @@ const skillTrees = [
 const unlockedSkills = new Set(["air-1", "air-2", "water-1", "fire-1", "earth-1"]);
 
 const tokenCount = document.getElementById("tokenCount");
+const goalModal = document.querySelector("[data-goal-modal]");
+const goalForm = document.querySelector("[data-goal-form]");
+const goalModalTitle = document.querySelector("[data-goal-modal-title]");
+
+let editingGoalId = null;
 
 const gameState = {
   level: 7,
@@ -348,6 +353,20 @@ function updateTokenCount() {
   tokenCount.textContent = tokens;
 }
 
+function normalizeGoals() {
+  goals.forEach((goal) => {
+    if (typeof goal.current !== "number") {
+      goal.current = 0;
+    }
+    if (typeof goal.tokenReward !== "number") {
+      goal.tokenReward = Math.round(goal.target / 4) || 0;
+    }
+    if (typeof goal.category !== "string") {
+      goal.category = "";
+    }
+  });
+}
+
 function renderGoals() {
   document.querySelectorAll("[data-goal-grid]").forEach((grid) => {
     grid.innerHTML = "";
@@ -360,9 +379,16 @@ function renderGoals() {
         </div>
         <div>
           <h4>${goal.title}</h4>
-          <p class="muted">Token reward: ${Math.round(goal.target / 4)}</p>
+          <div class="goal-meta">
+            <span class="goal-tag">Token reward: ${goal.tokenReward}</span>
+            ${goal.category ? `<span class="goal-tag">${goal.category}</span>` : ""}
+          </div>
         </div>
         <input type="number" min="0" step="0.1" value="${goal.current}" data-goal-input="${goal.id}" />
+        <div class="goal-actions">
+          <button class="ghost-button" type="button" data-edit-goal="${goal.id}">Edit</button>
+          <button class="ghost-button" type="button" data-delete-goal="${goal.id}">Delete</button>
+        </div>
       `;
       grid.appendChild(card);
     });
@@ -374,9 +400,11 @@ function updateRings() {
   document.querySelectorAll(".progress-ring").forEach((ring) => {
     const id = ring.dataset.id;
     const goal = goals.find((item) => item.id === id);
-    const percent = Math.min(100, Math.round((goal.current / goal.target) * 100));
+    const percent = goal && goal.target ? Math.min(100, Math.round((goal.current / goal.target) * 100)) : 0;
     ring.style.background = `conic-gradient(var(--accent) ${percent * 3.6}deg, #2a3437 0deg)`;
-    ring.querySelector("span").textContent = `${goal.current} / ${goal.target} ${goal.unit}`;
+    if (goal) {
+      ring.querySelector("span").textContent = `${goal.current} / ${goal.target} ${goal.unit}`;
+    }
   });
 }
 
@@ -786,10 +814,87 @@ function createId(value) {
   return value.toLowerCase().replace(/\s+/g, "-");
 }
 
+function createUniqueGoalId(title) {
+  const base = createId(title);
+  let id = base;
+  let index = 1;
+  while (goals.some((goal) => goal.id === id)) {
+    id = `${base}-${index}`;
+    index += 1;
+  }
+  return id;
+}
+
+function openGoalModal(goal = null) {
+  if (!goalForm || !goalModal) {
+    return;
+  }
+  editingGoalId = goal ? goal.id : null;
+  goalModalTitle.textContent = goal ? "Edit Goal" : "Add Goal";
+  goalForm.reset();
+  if (goal) {
+    goalForm.elements.title.value = goal.title;
+    goalForm.elements.unit.value = goal.unit;
+    goalForm.elements.target.value = goal.target;
+    goalForm.elements.reward.value = goal.tokenReward;
+    goalForm.elements.category.value = goal.category || "";
+  }
+  goalModal.classList.add("show");
+  goalModal.setAttribute("aria-hidden", "false");
+}
+
+function closeGoalModal() {
+  if (!goalModal) {
+    return;
+  }
+  goalModal.classList.remove("show");
+  goalModal.setAttribute("aria-hidden", "true");
+  editingGoalId = null;
+  if (goalForm) {
+    goalForm.reset();
+  }
+}
+
 document.addEventListener("click", (event) => {
   const tabButton = event.target.closest("[data-tab]");
   if (tabButton) {
     switchTab(tabButton.dataset.tab);
+  }
+
+  const addGoalButton = event.target.closest("[data-add-goal]");
+  if (addGoalButton) {
+    openGoalModal();
+  }
+
+  if (event.target.matches("[data-close-goal-modal]")) {
+    closeGoalModal();
+  }
+
+  if (event.target.matches("[data-clear-goal-form]")) {
+    if (goalForm) {
+      goalForm.reset();
+    }
+  }
+
+  if (event.target.matches("[data-edit-goal]")) {
+    const goal = goals.find((item) => item.id === event.target.dataset.editGoal);
+    if (goal) {
+      openGoalModal(goal);
+    }
+  }
+
+  if (event.target.matches("[data-delete-goal]")) {
+    const id = event.target.dataset.deleteGoal;
+    const goalIndex = goals.findIndex((item) => item.id === id);
+    if (goalIndex !== -1 && window.confirm("Delete this goal?")) {
+      goals.splice(goalIndex, 1);
+      renderGoals();
+      saveState();
+    }
+  }
+
+  if (event.target === goalModal) {
+    closeGoalModal();
   }
 
   const feedButton = event.target.closest("[data-feed-button]");
@@ -892,7 +997,9 @@ document.addEventListener("click", (event) => {
 document.addEventListener("input", (event) => {
   if (event.target.matches("[data-goal-input]")) {
     const goal = goals.find((item) => item.id === event.target.dataset.goalInput);
-    goal.current = Number(event.target.value);
+    if (goal) {
+      goal.current = Number(event.target.value);
+    }
     updateRings();
     saveState();
   }
@@ -913,6 +1020,48 @@ document.addEventListener("input", (event) => {
     }
   }
 });
+
+if (goalForm) {
+  goalForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const formData = new FormData(goalForm);
+    const title = formData.get("title");
+    const unit = formData.get("unit");
+    const target = Number(formData.get("target"));
+    const tokenReward = Number(formData.get("reward"));
+    const category = formData.get("category") || "";
+
+    if (!title || !unit || !target) {
+      return;
+    }
+
+    if (editingGoalId) {
+      const goal = goals.find((item) => item.id === editingGoalId);
+      if (goal) {
+        goal.title = title;
+        goal.unit = unit;
+        goal.target = target;
+        goal.tokenReward = tokenReward;
+        goal.category = category;
+      }
+    } else {
+      goals.unshift({
+        id: createUniqueGoalId(title),
+        title,
+        unit,
+        target,
+        current: 0,
+        tokenReward,
+        category,
+      });
+    }
+
+    normalizeGoals();
+    renderGoals();
+    saveState();
+    closeGoalModal();
+  });
+}
 
 document.querySelectorAll("[data-exercise-form]").forEach((form) => {
   form.addEventListener("submit", (event) => {
@@ -1020,6 +1169,7 @@ if (savedState) {
   applyState(savedState);
 }
 
+normalizeGoals();
 renderGoals();
 renderExerciseList();
 renderActiveWorkout();
