@@ -590,7 +590,8 @@ body {
   align-items: center;
 }
 
-.feed-actions select {
+.feed-actions select,
+.feed-actions input {
   background: #101416;
   border: 1px solid var(--border);
   color: var(--ink);
