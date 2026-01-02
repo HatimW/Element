@@ -50,14 +50,17 @@ let workouts = [
 ];
 
 let schedule = [
-  { id: "mon", day: "Mon", label: "Push Day 1", week: "Week 1", status: "active" },
-  { id: "tue", day: "Tue", label: "Chest Iso", week: "Week 1", status: "planned" },
-  { id: "wed", day: "Wed", label: "Rest + Mobility", week: "Week 1", status: "" },
-  { id: "thu", day: "Thu", label: "Pull Day", week: "Week 1", status: "planned" },
-  { id: "fri", day: "Fri", label: "Legs", week: "Week 1", status: "" },
-  { id: "sat", day: "Sat", label: "Conditioning", week: "Week 1", status: "planned" },
-  { id: "sun", day: "Sun", label: "Recovery", week: "Week 1", status: "" },
+  { id: "week1-mon", day: "Mon", weekIndex: 0, label: "Push Day 1", status: "active" },
+  { id: "week1-tue", day: "Tue", weekIndex: 0, label: "Chest Iso", status: "planned" },
+  { id: "week1-wed", day: "Wed", weekIndex: 0, label: "Rest + Mobility", status: "" },
+  { id: "week1-thu", day: "Thu", weekIndex: 0, label: "Pull Day", status: "planned" },
+  { id: "week1-fri", day: "Fri", weekIndex: 0, label: "Legs", status: "" },
+  { id: "week1-sat", day: "Sat", weekIndex: 0, label: "Conditioning", status: "planned" },
+  { id: "week1-sun", day: "Sun", weekIndex: 0, label: "Recovery", status: "" },
 ];
+
+const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const CALENDAR_WEEKS = 4;
 
 let foods = [
   {
@@ -383,6 +386,131 @@ function normalizeFoods() {
   });
 }
 
+function getDateKey(date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateKey(value) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function addDays(date, amount) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + amount);
+  return next;
+}
+
+function getStartOfWeek(date) {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  const dayIndex = (next.getDay() + 6) % 7;
+  next.setDate(next.getDate() - dayIndex);
+  return next;
+}
+
+function getDayLabel(date) {
+  return DAY_LABELS[(date.getDay() + 6) % 7];
+}
+
+function getWeekIndexFromLabel(label) {
+  if (typeof label !== "string") {
+    return null;
+  }
+  const match = label.match(/Week\s*(\d+)/i);
+  if (!match) {
+    return null;
+  }
+  const value = Number(match[1]);
+  return Number.isFinite(value) ? value - 1 : null;
+}
+
+function normalizeSchedule() {
+  schedule.forEach((entry) => {
+    if (!entry.date && typeof entry.weekIndex !== "number") {
+      const parsed = getWeekIndexFromLabel(entry.week);
+      entry.weekIndex = Number.isFinite(parsed) ? parsed : 0;
+    }
+    if (!entry.day && entry.date) {
+      entry.day = getDayLabel(parseDateKey(entry.date));
+    }
+    if (!entry.status) {
+      entry.status = "";
+    }
+    if (!entry.id) {
+      entry.id = createId(`${entry.label || "schedule"}-${entry.day || entry.date || entry.weekIndex}`);
+    }
+  });
+}
+
+function initializeScheduleForms() {
+  const start = getStartOfWeek(new Date());
+  const end = addDays(start, CALENDAR_WEEKS * 7 - 1);
+  const startValue = getDateKey(start);
+  const endValue = getDateKey(end);
+  document.querySelectorAll("[data-schedule-start]").forEach((input) => {
+    if (!input.value) {
+      input.value = startValue;
+    }
+  });
+  document.querySelectorAll("[data-schedule-end]").forEach((input) => {
+    if (!input.value) {
+      input.value = endValue;
+    }
+  });
+}
+
+function getScheduleViewStart() {
+  const startInput = document.querySelector("[data-schedule-start]");
+  if (startInput && startInput.value) {
+    return getStartOfWeek(parseDateKey(startInput.value));
+  }
+  return getStartOfWeek(new Date());
+}
+
+function getEntriesForDate(date, weekIndex) {
+  const dateKey = getDateKey(date);
+  const dayLabel = getDayLabel(date);
+  return schedule.filter((entry) => {
+    if (entry.date) {
+      return entry.date === dateKey;
+    }
+    return entry.weekIndex === weekIndex && entry.day === dayLabel;
+  });
+}
+
+function buildRecurringScheduleEntries({ label, day, recurrence, startDate, endDate }) {
+  const dayIndex = DAY_LABELS.indexOf(day);
+  if (dayIndex === -1) {
+    return [];
+  }
+  const rangeStart = new Date(startDate);
+  rangeStart.setHours(0, 0, 0, 0);
+  const rangeEnd = new Date(endDate);
+  rangeEnd.setHours(0, 0, 0, 0);
+  const startDayIndex = (rangeStart.getDay() + 6) % 7;
+  const offset = dayIndex - startDayIndex;
+  let current = addDays(rangeStart, offset < 0 ? offset + 7 : offset);
+  const intervalWeeks = recurrence === "biweekly" ? 2 : 1;
+  const entries = [];
+
+  while (current <= rangeEnd) {
+    const dateKey = getDateKey(current);
+    entries.push({
+      id: createId(`${label}-${dateKey}`),
+      label,
+      status: "planned",
+      date: dateKey,
+    });
+    current = addDays(current, intervalWeeks * 7);
+  }
+
+  return entries;
+}
+
 function updateGoalProgress(goal) {
   if (!goal || !goal.target) {
     return;
@@ -640,26 +768,64 @@ function renderWorkoutCards() {
 function renderCalendar() {
   document.querySelectorAll("[data-calendar-grid]").forEach((grid) => {
     grid.innerHTML = "";
-    schedule.forEach((entry) => {
-      const day = document.createElement("div");
-      day.className = "calendar-day";
-      if (entry.status === "active") {
-        day.classList.add("active");
+    const viewStart = getScheduleViewStart();
+    for (let weekIndex = 0; weekIndex < CALENDAR_WEEKS; weekIndex += 1) {
+      for (let dayOffset = 0; dayOffset < 7; dayOffset += 1) {
+        const date = addDays(viewStart, weekIndex * 7 + dayOffset);
+        const entries = getEntriesForDate(date, weekIndex);
+        const dayLabel = getDayLabel(date);
+        const dayCard = document.createElement("div");
+        dayCard.className = "calendar-day";
+        if (entries.some((entry) => entry.status === "active")) {
+          dayCard.classList.add("active");
+        }
+        if (entries.some((entry) => entry.status === "planned")) {
+          dayCard.classList.add("planned");
+        }
+        if (entries.some((entry) => entry.status === "done")) {
+          dayCard.classList.add("done");
+        }
+
+        dayCard.innerHTML = `
+          <div class="calendar-day-header">
+            <span>${dayLabel}</span>
+            <span class="calendar-day-date">${date.toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+            })}</span>
+          </div>
+          <small class="calendar-week-label">Week ${weekIndex + 1}</small>
+          <ul class="schedule-list"></ul>
+        `;
+
+        const list = dayCard.querySelector(".schedule-list");
+        if (entries.length) {
+          entries.forEach((entry) => {
+            const item = document.createElement("li");
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "schedule-entry";
+            if (entry.status) {
+              button.classList.add(entry.status);
+            }
+            button.dataset.scheduleId = entry.id;
+            const meta = entry.date ? entry.date : `Week ${entry.weekIndex + 1}`;
+            button.innerHTML = `
+              <strong>${entry.label || "Open"}</strong>
+              <small>${meta}</small>
+            `;
+            item.appendChild(button);
+            list.appendChild(item);
+          });
+        } else {
+          const emptyItem = document.createElement("li");
+          emptyItem.innerHTML = `<span class="schedule-empty">Open</span>`;
+          list.appendChild(emptyItem);
+        }
+
+        grid.appendChild(dayCard);
       }
-      if (entry.status === "planned") {
-        day.classList.add("planned");
-      }
-      if (entry.status === "done") {
-        day.classList.add("done");
-      }
-      day.dataset.scheduleId = entry.id;
-      day.innerHTML = `
-        <span>${entry.day}</span>
-        <strong>${entry.label}</strong>
-        <small>${entry.week}</small>
-      `;
-      grid.appendChild(day);
-    });
+    }
   });
 }
 
@@ -1062,6 +1228,18 @@ document.addEventListener("input", (event) => {
       renderActiveWorkout();
     }
   }
+
+  if (event.target.matches("[data-schedule-start], [data-schedule-end]")) {
+    const selector = event.target.matches("[data-schedule-start]")
+      ? "[data-schedule-start]"
+      : "[data-schedule-end]";
+    document.querySelectorAll(selector).forEach((input) => {
+      if (input !== event.target) {
+        input.value = event.target.value;
+      }
+    });
+    renderCalendar();
+  }
 });
 
 if (goalForm) {
@@ -1152,16 +1330,68 @@ document.querySelectorAll("[data-workout-form]").forEach((form) => {
       items: activeWorkout.items.map((item) => ({ ...item })),
     });
 
-    const scheduleEntry = schedule.find((entry) => entry.day === day);
+    const weekIndex = getWeekIndexFromLabel(week) ?? 0;
+    const scheduleEntry = schedule.find(
+      (entry) => !entry.date && entry.day === day && entry.weekIndex === weekIndex,
+    );
     if (scheduleEntry) {
       scheduleEntry.label = name;
-      scheduleEntry.week = week;
       scheduleEntry.status = "planned";
+    } else {
+      schedule.push({
+        id: createId(`${name}-${day}-week-${weekIndex + 1}`),
+        day,
+        weekIndex,
+        label: name,
+        status: "planned",
+      });
     }
 
     form.reset();
     renderWorkouts();
     renderWorkoutCards();
+    renderCalendar();
+    saveState();
+  });
+});
+
+document.querySelectorAll("[data-schedule-form]").forEach((form) => {
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const formData = new FormData(form);
+    const label = formData.get("label");
+    const day = formData.get("day");
+    const recurrence = formData.get("recurrence");
+    const startValue = formData.get("start");
+    const endValue = formData.get("end");
+
+    if (!label || !day || !startValue || !endValue) {
+      return;
+    }
+
+    const startDate = parseDateKey(startValue);
+    const endDate = parseDateKey(endValue);
+    if (startDate > endDate) {
+      return;
+    }
+
+    const entries = buildRecurringScheduleEntries({
+      label,
+      day,
+      recurrence,
+      startDate,
+      endDate,
+    });
+    const entryDates = new Set(entries.map((entry) => entry.date));
+    const filteredSchedule = schedule.filter(
+      (entry) => !(entry.label === label && entry.date && entryDates.has(entry.date)),
+    );
+    replaceArray(schedule, filteredSchedule);
+    entries.forEach((entry) => schedule.push(entry));
+
+    form.querySelectorAll('input[name="label"]').forEach((input) => {
+      input.value = "";
+    });
     renderCalendar();
     saveState();
   });
@@ -1222,6 +1452,8 @@ if (savedState) {
 normalizeGoals();
 normalizeWorkouts();
 normalizeFoods();
+normalizeSchedule();
+initializeScheduleForms();
 renderGoals();
 renderExerciseList();
 renderActiveWorkout();

@@ -131,8 +131,34 @@
         <section class="section calendar">
           <div class="section-heading">
             <h2>Workout Calendar</h2>
-            <button class="ghost-button">Mass Schedule</button>
           </div>
+          <form class="form-grid schedule-form" data-schedule-form>
+            <input type="text" name="label" placeholder="Session label" required />
+            <select name="day">
+              <option value="Mon">Monday</option>
+              <option value="Tue">Tuesday</option>
+              <option value="Wed">Wednesday</option>
+              <option value="Thu">Thursday</option>
+              <option value="Fri">Friday</option>
+              <option value="Sat">Saturday</option>
+              <option value="Sun">Sunday</option>
+            </select>
+            <select name="recurrence">
+              <option value="weekly">Weekly</option>
+              <option value="biweekly">Biweekly</option>
+            </select>
+            <div class="form-row">
+              <label class="form-label">
+                <span>Start</span>
+                <input type="date" name="start" data-schedule-start required />
+              </label>
+              <label class="form-label">
+                <span>End</span>
+                <input type="date" name="end" data-schedule-end required />
+              </label>
+            </div>
+            <button class="ghost-button" type="submit" data-mass-schedule>Mass Schedule</button>
+          </form>
           <div class="calendar-grid" data-calendar-grid></div>
         </section>
 
@@ -237,7 +263,8 @@
                 <select name="week">
                   <option value="Week 1">Week 1</option>
                   <option value="Week 2">Week 2</option>
-                  <option value="Every other week">Every other week</option>
+                  <option value="Week 3">Week 3</option>
+                  <option value="Week 4">Week 4</option>
                 </select>
                 <input type="number" name="tokens" min="0" placeholder="Workout tokens" />
                 <button class="primary-button" type="submit">Save Workout</button>
@@ -251,9 +278,36 @@
             <div class="panel-column">
               <h3>Calendar & Schedules</h3>
               <p class="muted">
-                Tap a day to mark it complete or adjust. You can mass schedule by selecting "Every
-                other week" from the workout builder.
+                Tap a session to mark it complete or adjust. Use Mass Schedule to set a weekly or
+                biweekly cadence across a date range.
               </p>
+              <form class="form-grid schedule-form" data-schedule-form>
+                <input type="text" name="label" placeholder="Session label" required />
+                <select name="day">
+                  <option value="Mon">Monday</option>
+                  <option value="Tue">Tuesday</option>
+                  <option value="Wed">Wednesday</option>
+                  <option value="Thu">Thursday</option>
+                  <option value="Fri">Friday</option>
+                  <option value="Sat">Saturday</option>
+                  <option value="Sun">Sunday</option>
+                </select>
+                <select name="recurrence">
+                  <option value="weekly">Weekly</option>
+                  <option value="biweekly">Biweekly</option>
+                </select>
+                <div class="form-row">
+                  <label class="form-label">
+                    <span>Start</span>
+                    <input type="date" name="start" data-schedule-start required />
+                  </label>
+                  <label class="form-label">
+                    <span>End</span>
+                    <input type="date" name="end" data-schedule-end required />
+                  </label>
+                </div>
+                <button class="ghost-button" type="submit" data-mass-schedule>Mass Schedule</button>
+              </form>
               <div class="calendar-grid" data-calendar-grid></div>
               <ul class="data-list" data-workout-list></ul>
             </div>
@@ -461,8 +515,34 @@
         <section class="section calendar">
           <div class="section-heading">
             <h2>Workout Calendar</h2>
-            <button class="ghost-button">Mass Schedule</button>
           </div>
+          <form class="form-grid schedule-form" data-schedule-form>
+            <input type="text" name="label" placeholder="Session label" required />
+            <select name="day">
+              <option value="Mon">Monday</option>
+              <option value="Tue">Tuesday</option>
+              <option value="Wed">Wednesday</option>
+              <option value="Thu">Thursday</option>
+              <option value="Fri">Friday</option>
+              <option value="Sat">Saturday</option>
+              <option value="Sun">Sunday</option>
+            </select>
+            <select name="recurrence">
+              <option value="weekly">Weekly</option>
+              <option value="biweekly">Biweekly</option>
+            </select>
+            <div class="form-row">
+              <label class="form-label">
+                <span>Start</span>
+                <input type="date" name="start" data-schedule-start required />
+              </label>
+              <label class="form-label">
+                <span>End</span>
+                <input type="date" name="end" data-schedule-end required />
+              </label>
+            </div>
+            <button class="ghost-button" type="submit" data-mass-schedule>Mass Schedule</button>
+          </form>
           <div class="calendar-grid" data-calendar-grid></div>
         </section>
       </div>
