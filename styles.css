@@ -489,13 +489,25 @@ body {
   border-radius: 999px;
   overflow: hidden;
   margin: 10px 0;
+  position: relative;
 }
 
 .macro-progress {
+  position: relative;
   height: 100%;
   width: 0%;
   background: linear-gradient(90deg, var(--accent-2), var(--accent));
   transition: width 0.3s ease;
+}
+
+.macro-overfill {
+  position: absolute;
+  inset: 0;
+  width: 0%;
+  background: linear-gradient(90deg, #ff8f5e, #ff5252);
+  opacity: 0.85;
+  transition: width 0.3s ease;
+  z-index: 1;
 }
 
 .macro-label {
