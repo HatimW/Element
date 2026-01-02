@@ -1,4 +1,6 @@
-const goals = [
+const STORAGE_KEY = "elementState";
+
+let goals = [
   { id: "water", title: "Water Intake", unit: "oz", target: 100, current: 60 },
   { id: "pushups", title: "Pushups", unit: "reps", target: 100, current: 70 },
   { id: "run", title: "Run", unit: "mile", target: 1, current: 0.5 },
@@ -36,7 +38,7 @@ const activeWorkout = {
   ],
 };
 
-const workouts = [
+let workouts = [
   {
     id: "push-day",
     name: "Push Day 1",
@@ -47,7 +49,7 @@ const workouts = [
   },
 ];
 
-const schedule = [
+let schedule = [
   { id: "mon", day: "Mon", label: "Push Day 1", week: "Week 1", status: "active" },
   { id: "tue", day: "Tue", label: "Chest Iso", week: "Week 1", status: "planned" },
   { id: "wed", day: "Wed", label: "Rest + Mobility", week: "Week 1", status: "" },
@@ -57,7 +59,7 @@ const schedule = [
   { id: "sun", day: "Sun", label: "Recovery", week: "Week 1", status: "" },
 ];
 
-const foods = [
+let foods = [
   {
     id: "milk",
     name: "Milk",
@@ -96,7 +98,7 @@ const foods = [
   },
 ];
 
-const recipes = [
+let recipes = [
   {
     id: "smoothie",
     name: "Protein Smoothie",
@@ -269,6 +271,74 @@ const gameState = {
 const tabButtons = document.querySelectorAll("[data-tab]");
 const tabPanels = document.querySelectorAll("[data-panel]");
 
+function replaceArray(target, next) {
+  target.length = 0;
+  next.forEach((item) => target.push(item));
+}
+
+function loadState() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (!saved) {
+    return null;
+  }
+  try {
+    return JSON.parse(saved);
+  } catch (error) {
+    console.warn("Unable to parse saved state", error);
+    return null;
+  }
+}
+
+function saveState() {
+  const state = {
+    goals,
+    workouts,
+    schedule,
+    foods,
+    recipes,
+    macroTotals,
+    tokens,
+    unlockedSkills: Array.from(unlockedSkills),
+    gameState,
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function applyState(saved) {
+  if (Array.isArray(saved.goals)) {
+    replaceArray(goals, saved.goals);
+  }
+  if (Array.isArray(saved.workouts)) {
+    replaceArray(workouts, saved.workouts);
+  }
+  if (Array.isArray(saved.schedule)) {
+    replaceArray(schedule, saved.schedule);
+  }
+  if (Array.isArray(saved.foods)) {
+    replaceArray(foods, saved.foods);
+  }
+  if (Array.isArray(saved.recipes)) {
+    replaceArray(recipes, saved.recipes);
+  }
+  if (saved.macroTotals && typeof saved.macroTotals === "object") {
+    Object.keys(macroTotals).forEach((key) => {
+      if (typeof saved.macroTotals[key] === "number") {
+        macroTotals[key] = saved.macroTotals[key];
+      }
+    });
+  }
+  if (typeof saved.tokens === "number") {
+    tokens = saved.tokens;
+  }
+  if (Array.isArray(saved.unlockedSkills)) {
+    unlockedSkills.clear();
+    saved.unlockedSkills.forEach((skillId) => unlockedSkills.add(skillId));
+  }
+  if (saved.gameState && typeof saved.gameState === "object") {
+    Object.assign(gameState, saved.gameState);
+  }
+}
+
 function switchTab(tabId) {
   tabButtons.forEach((button) => button.classList.toggle("active", button.dataset.tab === tabId));
   tabPanels.forEach((panel) => panel.classList.toggle("active", panel.dataset.panel === tabId));
@@ -398,6 +468,7 @@ function logMeal(selection) {
   tokens += 5;
   updateTokenCount();
   updateMacros();
+  saveState();
 }
 
 function renderExerciseList() {
@@ -708,6 +779,7 @@ function completeWorkout() {
     }
   });
   renderCalendar();
+  saveState();
 }
 
 function createId(value) {
@@ -778,6 +850,7 @@ document.addEventListener("click", (event) => {
       unlockedSkills.add(skillId);
       updateTokenCount();
       renderSkillTrees();
+      saveState();
     }
   }
 
@@ -790,6 +863,7 @@ document.addEventListener("click", (event) => {
     updateTokenCount();
     renderGameStats();
     renderWaveLog();
+    saveState();
   }
 
   if (event.target.matches("[data-special-move]")) {
@@ -797,6 +871,7 @@ document.addEventListener("click", (event) => {
     gameState.stamina = Math.max(0, gameState.stamina - 10);
     updateTokenCount();
     renderGameStats();
+    saveState();
   }
 
   if (event.target.matches("[data-complete-workout]")) {
@@ -809,6 +884,7 @@ document.addEventListener("click", (event) => {
     if (entry) {
       entry.status = entry.status === "done" ? "planned" : "done";
       renderCalendar();
+      saveState();
     }
   }
 });
@@ -818,6 +894,7 @@ document.addEventListener("input", (event) => {
     const goal = goals.find((item) => item.id === event.target.dataset.goalInput);
     goal.current = Number(event.target.value);
     updateRings();
+    saveState();
   }
 
   if (event.target.matches("[data-workout-sets]")) {
@@ -890,6 +967,7 @@ document.querySelectorAll("[data-workout-form]").forEach((form) => {
     renderWorkouts();
     renderWorkoutCards();
     renderCalendar();
+    saveState();
   });
 });
 
@@ -912,6 +990,7 @@ document.querySelectorAll("[data-food-form]").forEach((form) => {
     renderFoods();
     renderMealSelects();
     renderRecipeSelect();
+    saveState();
   });
 });
 
@@ -932,8 +1011,14 @@ document.querySelectorAll("[data-recipe-form]").forEach((form) => {
     form.reset();
     renderMealSelects();
     renderRecipeBuilder();
+    saveState();
   });
 });
+
+const savedState = loadState();
+if (savedState) {
+  applyState(savedState);
+}
 
 renderGoals();
 renderExerciseList();
