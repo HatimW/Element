@@ -596,9 +596,15 @@ function updateRings() {
 function updateMacros() {
   Object.entries(macroTargets).forEach(([key, target]) => {
     const total = macroTotals[key];
-    const percent = Math.min(140, (total / target) * 100);
+    const percent = (total / target) * 100;
+    const clamped = Math.min(100, Math.max(0, percent));
+    const overfill = Math.max(0, Math.min(100, percent - 100));
     document.querySelectorAll(`[data-macro="${key}"]`).forEach((card) => {
-      card.querySelector(".macro-progress").style.width = `${percent}%`;
+      card.querySelector(".macro-progress").style.width = `${clamped}%`;
+      const overfillEl = card.querySelector(".macro-overfill");
+      if (overfillEl) {
+        overfillEl.style.width = `${overfill}%`;
+      }
       card.querySelector(".macro-label").textContent = `${total} / ${target}${key === "calories" ? " kcal" : "g"}`;
     });
   });
@@ -658,19 +664,29 @@ function renderMealSelects() {
   });
 }
 
-function logMeal(selection, tokenOverride = null) {
+function logMeal(selection, tokenOverride = null, quantity = 1) {
   if (!selection) {
     return;
   }
   const [type, id] = selection.split(":");
   let totals = null;
+  const normalizedQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
 
   if (type === "food") {
     const food = foods.find((item) => item.id === id);
-    totals = food ? computeFoodTotals(food) : null;
+    totals = food ? computeFoodTotals(food, normalizedQuantity) : null;
   } else if (type === "recipe") {
     const recipe = recipes.find((item) => item.id === id);
     totals = recipe ? computeRecipeTotals(recipe) : null;
+    if (totals) {
+      totals = {
+        calories: totals.calories * normalizedQuantity,
+        protein: totals.protein * normalizedQuantity,
+        carbs: totals.carbs * normalizedQuantity,
+        fat: totals.fat * normalizedQuantity,
+        tokens: totals.tokens * normalizedQuantity,
+      };
+    }
   }
 
   if (!totals) {
@@ -1139,8 +1155,10 @@ document.addEventListener("click", (event) => {
     const container = feedButton.closest(".feed-actions");
     const select = container ? container.querySelector("[data-meal-select]") : null;
     const tokenInput = container ? container.querySelector("[data-meal-token]") : null;
+    const qtyInput = container ? container.querySelector("[data-meal-qty]") : null;
     const overrideValue = tokenInput && tokenInput.value !== "" ? Number(tokenInput.value) : null;
-    logMeal(select ? select.value : null, overrideValue);
+    const quantityValue = qtyInput ? Number(qtyInput.value) : 1;
+    logMeal(select ? select.value : null, overrideValue, quantityValue);
     if (tokenInput) {
       tokenInput.value = "";
     }
@@ -1187,7 +1205,7 @@ document.addEventListener("click", (event) => {
   }
 
   if (event.target.matches("[data-quick-log]")) {
-    logMeal(`food:${event.target.dataset.quickLog}`);
+    logMeal(`food:${event.target.dataset.quickLog}`, null, 1);
   }
 
   if (event.target.matches("[data-unlock-skill]")) {
