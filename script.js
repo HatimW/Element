@@ -32,9 +32,9 @@ const exercises = [
 
 const activeWorkout = {
   items: [
-    { id: "bench", name: "Bench Press", sets: 4, reps: "8" },
-    { id: "incline", name: "Incline Dumbbell Press", sets: 3, reps: "10" },
-    { id: "plank", name: "Plank Hold", sets: 3, reps: "45s" },
+    { id: "bench", name: "Bench Press", sets: 4, reps: "8", completed: false },
+    { id: "incline", name: "Incline Dumbbell Press", sets: 3, reps: "10", completed: false },
+    { id: "plank", name: "Plank Hold", sets: 3, reps: "45s", completed: false },
   ],
 };
 
@@ -376,6 +376,14 @@ function normalizeWorkouts() {
   workouts.forEach((workout) => {
     const rewardValue = Number(workout.tokens);
     workout.tokens = Number.isFinite(rewardValue) ? rewardValue : 0;
+    if (!Array.isArray(workout.items)) {
+      workout.items = [];
+    }
+    workout.items.forEach((item) => {
+      if (typeof item.completed !== "boolean") {
+        item.completed = false;
+      }
+    });
   });
 }
 
@@ -384,6 +392,25 @@ function normalizeFoods() {
     const rewardValue = Number(food.tokens);
     food.tokens = Number.isFinite(rewardValue) ? rewardValue : 0;
   });
+}
+
+function getWorkoutCompletion(workout) {
+  const items = Array.isArray(workout.items) ? workout.items : [];
+  const total = items.length;
+  const completed = items.filter((item) => item.completed).length;
+  const ratio = total ? completed / total : 0;
+  return {
+    total,
+    completed,
+    ratio,
+    allComplete: total > 0 && completed === total,
+  };
+}
+
+function getWorkoutRewardTokens(workout) {
+  const baseTokens = Number.isFinite(workout.tokens) ? workout.tokens : 0;
+  const { ratio } = getWorkoutCompletion(workout);
+  return Math.round(baseTokens * ratio);
 }
 
 function getDateKey(date) {
@@ -745,23 +772,29 @@ function renderWorkoutCards() {
   document.querySelectorAll("[data-workout-card]").forEach((card) => {
     const meta = card.querySelector("[data-workout-meta]");
     const list = card.querySelector("[data-workout-list]");
+    const completeButton = card.querySelector("[data-complete-workout]");
     if (!currentWorkout) {
       return;
     }
+    const completion = getWorkoutCompletion(currentWorkout);
+    const rewardTokens = getWorkoutRewardTokens(currentWorkout);
     meta.innerHTML = `
       <p>${currentWorkout.name} • ${currentWorkout.day}</p>
-      <span>Earn ${currentWorkout.tokens} Tokens</span>
+      <span>Earn ${rewardTokens} of ${currentWorkout.tokens} Tokens</span>
     `;
     list.innerHTML = "";
-    currentWorkout.items.forEach((item) => {
+    currentWorkout.items.forEach((item, index) => {
       const entry = document.createElement("li");
       entry.innerHTML = `
         <span>${item.name}</span>
         <small>${item.sets} sets × ${item.reps}</small>
-        <input type="checkbox" />
+        <input type="checkbox" data-workout-item="${index}" ${item.completed ? "checked" : ""} />
       `;
       list.appendChild(entry);
     });
+    if (completeButton) {
+      completeButton.disabled = !completion.allComplete;
+    }
   });
 }
 
@@ -1001,12 +1034,13 @@ function completeWorkout() {
   if (!currentWorkout) {
     return;
   }
-  const rewardTokens = Number.isFinite(currentWorkout.tokens) ? currentWorkout.tokens : 0;
+  const completion = getWorkoutCompletion(currentWorkout);
+  const rewardTokens = getWorkoutRewardTokens(currentWorkout);
   tokens += rewardTokens;
   updateTokenCount();
   schedule.forEach((entry) => {
     if (entry.label === currentWorkout.name) {
-      entry.status = "done";
+      entry.status = completion.allComplete ? "done" : "active";
     }
   });
   renderCalendar();
@@ -1120,6 +1154,7 @@ document.addEventListener("click", (event) => {
         name: exercise.name,
         sets: exercise.sets,
         reps: exercise.reps,
+        completed: false,
       });
       renderActiveWorkout();
     }
@@ -1197,6 +1232,18 @@ document.addEventListener("click", (event) => {
     if (entry) {
       entry.status = entry.status === "done" ? "planned" : "done";
       renderCalendar();
+      saveState();
+    }
+  }
+});
+
+document.addEventListener("change", (event) => {
+  if (event.target.matches("[data-workout-item]")) {
+    const index = Number(event.target.dataset.workoutItem);
+    const currentWorkout = workouts[0];
+    if (currentWorkout && currentWorkout.items[index]) {
+      currentWorkout.items[index].completed = event.target.checked;
+      renderWorkoutCards();
       saveState();
     }
   }
@@ -1327,7 +1374,10 @@ document.querySelectorAll("[data-workout-form]").forEach((form) => {
       day,
       week,
       tokens: workoutTokens,
-      items: activeWorkout.items.map((item) => ({ ...item })),
+      items: activeWorkout.items.map((item) => ({
+        ...item,
+        completed: false,
+      })),
     });
 
     const weekIndex = getWeekIndexFromLabel(week) ?? 0;
